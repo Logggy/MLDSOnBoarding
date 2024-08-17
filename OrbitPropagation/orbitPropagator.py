@@ -10,7 +10,9 @@ import matplotlib.pyplot as plt
 ## First we will make a propagator that assumes 2BD
 
 
-def twoBodyProp(x, y, z, vx, vy, vz):
+def twoBodyProp(
+    x, y, z, vx, vy, vz
+):  ## Contemplate adding an argument for example initial conditions!
     ## Lets establish some constants
     G = 6.67 * 10**-11  # N*m^2/kg^2
     m_earth = 5.972 * 10**24  # kg
@@ -35,6 +37,7 @@ def twoBodyProp(x, y, z, vx, vy, vz):
     ## 1. set a condition where the propagation stops when the initial x, y, z position is passed (after some time has passed) - failed too sensitive
     ## 2. If you know the eccentricity and the semi-major axis then you can stop when the orbit encompasses the correct area - too complicated probably
     ## 3. rework 1 but how??? Flag the FIRST time slope changes from positive to negative!!! (I thought of this myself!!!!!)
+    ## this itself actually isn't enough, you probably want to run a root finder on the velocity curve or something (I'm doing the crude way first)
     ## I wonder what the right answer is lol, its probably just finding the orbital parameters then you don't even have to propagate
 
     ## set up our integrator and associated variables
@@ -48,21 +51,35 @@ def twoBodyProp(x, y, z, vx, vy, vz):
     state_array = np.array([initial_state_vector])
     # time_array = np.array([0])
     i = 1
+
+    ## Find the index of the maximum of the x, y, z values in the initial state vector
+    initial_state_max_index = np.argmax(initial_state_vector[:3])
     while integrator.successful() and i < 100:
         print(i)
         integrator.integrate(integrator.t + dt)
         # time_array = np.append(time_array, [[integrator.t]], axis=0) # dont need
         state_array = np.append(state_array, [integrator.y], axis=0)
+        ## Now we need a way of evaluating the slope changing and it needs to be able to handle different orbits
+        ## First we need to choose which cartesian coordinate to use - use the largest starting position!
+        ## That's why we found initial_state_max_index
+        ## If condition is met, we have hopefully only passed one orbit!
+        if i > 1:
+            if (
+                state_array[i - 1, initial_state_max_index]
+                - state_array[i - 2, initial_state_max_index]
+                > 0
+                and state_array[i, initial_state_max_index]
+                - state_array[i - 1, initial_state_max_index]
+                < 0
+            ):
+                break
+
         i += 1
-        print(i)
-        if (
-            initial_state_vector[0] == state_array[i - 1, 0]
-            and initial_state_vector[1] == state_array[i - 1, 1]
-        ):
-            break
 
     return state_array
 
+
+## For testing purposes only vvvvv
 
 G = 6.67 * 10**-11  # N*m^2/kg^2
 m_earth = 5.972 * 10**24  # kg
