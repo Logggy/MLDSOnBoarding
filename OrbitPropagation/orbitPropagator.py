@@ -1,6 +1,5 @@
 import numpy as np
 import scipy.integrate as integrate
-import matplotlib.pyplot as plt
 
 ## Here we will set up the propagator we will use in this task!
 
@@ -17,7 +16,6 @@ def twoBodyProp(
     ## Lets establish some constants
     G = 6.67 * 10**-11  # N*m^2/kg^2
     m_earth = 5.972 * 10**24  # kg
-    r_earth = 6.371 * 10**6  # m
     initial_state_vector = [x, y, z, vx, vy, vz]
 
     ## Now we propagate
