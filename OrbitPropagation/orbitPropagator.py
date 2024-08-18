@@ -10,8 +10,9 @@ import matplotlib.pyplot as plt
 ## First we will make a propagator that assumes 2BD
 
 
+## Propagator for 2BD, requires cartesian state_array input with desired time step resolution
 def twoBodyProp(
-    x, y, z, vx, vy, vz
+    x, y, z, vx, vy, vz, time_step
 ):  ## Contemplate adding an argument for example initial conditions!
     ## Lets establish some constants
     G = 6.67 * 10**-11  # N*m^2/kg^2
@@ -50,7 +51,7 @@ def twoBodyProp(
     )  # use 8th order RK method - apparently it's really good
     integrator.set_f_params(m_earth)  # use earth mass
     integrator.set_initial_value(initial_state_vector, 0)
-    dt = 10  # arbitrary
+    dt = time_step  # arbitrary, set by user
     state_array = np.array([initial_state_vector])
     # time_array = np.array([0])
     i = 1
@@ -84,17 +85,17 @@ def twoBodyProp(
 
 ## For testing purposes only vvvvv
 
-G = 6.67 * 10**-11  # N*m^2/kg^2
-m_earth = 5.972 * 10**24  # kg
-altitude = 5 * 10**6  # m
+# G = 6.67 * 10**-11  # N*m^2/kg^2
+# m_earth = 5.972 * 10**24  # kg
+# altitude = 5 * 10**6  # m
 
-print(
-    twoBodyProp(
-        6.371 * 10**6 + altitude,  # radius of the earth plus however many meters
-        0,
-        0,
-        0,
-        np.sqrt((G * m_earth) / ((6.371 * 10**6) + altitude)),
-        0,
-    )
-)
+# print(
+#     twoBodyProp(
+#         6.371 * 10**6 + altitude,  # radius of the earth plus however many meters
+#         0,
+#         0,
+#         0,
+#         np.sqrt((G * m_earth) / ((6.371 * 10**6) + altitude)),
+#         0,
+#     )
+# )
