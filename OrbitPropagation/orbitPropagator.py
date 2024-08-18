@@ -10,6 +10,7 @@ import scipy.integrate as integrate
 
 
 ## Propagator for 2BD, requires cartesian state_array input with desired time step resolution
+## This function returns a full state array for each time step
 def twoBodyProp(
     x, y, z, vx, vy, vz, time_step
 ):  ## Contemplate adding an argument for example initial conditions!
