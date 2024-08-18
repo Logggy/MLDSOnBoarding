@@ -12,7 +12,7 @@ import scipy.integrate as integrate
 ## Propagator for 2BD, requires cartesian state_array input with desired time step resolution
 ## This function returns a full state array for each time step
 def twoBodyProp(
-    x, y, z, vx, vy, vz, time_step
+    x, y, z, vx, vy, vz, time_step=10
 ):  ## Contemplate adding an argument for example initial conditions!
     ## Lets establish some constants
     G = 6.67 * 10**-11  # N*m^2/kg^2
@@ -56,7 +56,6 @@ def twoBodyProp(
     i = 1
 
     while integrator.successful():
-        print(i)
         integrator.integrate(integrator.t + dt)
         # time_array = np.append(time_array, [[integrator.t]], axis=0) # dont need
         state_array = np.append(state_array, [integrator.y], axis=0)
