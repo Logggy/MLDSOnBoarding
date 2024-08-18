@@ -55,40 +55,23 @@ def twoBodyProp(
     # time_array = np.array([0])
     i = 1
 
-    ## Find the index of the maximum of the x, y, z values in the initial state vector
-    initial_state_max_index = np.argmax(initial_state_vector[:3])
     while integrator.successful():
         print(i)
         integrator.integrate(integrator.t + dt)
         # time_array = np.append(time_array, [[integrator.t]], axis=0) # dont need
         state_array = np.append(state_array, [integrator.y], axis=0)
-        ## Now we need a way of evaluating the slope changing and it needs to be able to handle different orbits
-        ## First we need to choose which cartesian coordinate to use - use the largest starting position!
-        ## That's why we found initial_state_max_index
-        ## If condition is met, we have hopefully only passed one orbit! - this works for now but I know this isn't optimal, I want to know the good way
-        ## New idea: record the slope of your chosen coordinate after the first step
-        ## Or just find some way to tell it passed the initial condition
-        ## So lets do the same thing - when it starts we will be getting further away from each x, y, z initial condition
+        ## Just find some way to tell it passed the initial condition
+        ## when it starts we will be getting further away from each x, y, z initial condition
         ## at some point (180 degrees later) we will begin to get closer again, and after that we flag when we get further away again
         ## Except that only works when the initial conditions place you in an already stable orbit...
         ## I'll implement this here for now and see what a good answer is
-        # if i > 1:
-        #     if (
-        #         state_array[i - 1, initial_state_max_index]
-        #         - state_array[i - 2, initial_state_max_index]
-        #         > 0
-        #         and state_array[i, initial_state_max_index]
-        #         - state_array[i - 1, initial_state_max_index]
-        #         < 0
-        #     ):
-        #         break
         if i > 2:
             ## The norm of the difference of the previous state array and the initial should get larger as the orbit begins to get
             # closer again
-
             if np.linalg.norm(
                 state_array[i - 2, :3] - initial_state_vector[:3]
             ) > np.linalg.norm(state_array[i - 1, :3] - initial_state_vector[:3]):
+                ## If the previous one was getting closer and the current one is getting further, we know we've passed one orbit
                 if np.linalg.norm(
                     state_array[i - 1, :3] - initial_state_vector[:3]
                 ) < np.linalg.norm(state_array[i, :3] - initial_state_vector[:3]):
