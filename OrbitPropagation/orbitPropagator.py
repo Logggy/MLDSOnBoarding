@@ -62,7 +62,8 @@ def twoBodyProp(
         ## Now we need a way of evaluating the slope changing and it needs to be able to handle different orbits
         ## First we need to choose which cartesian coordinate to use - use the largest starting position!
         ## That's why we found initial_state_max_index
-        ## If condition is met, we have hopefully only passed one orbit!
+        ## If condition is met, we have hopefully only passed one orbit! - this works for now but I know this isn't optimal, I want to know the good way
+        ## New idea: record the slope of your chosen coordinate after the first step
         if i > 1:
             if (
                 state_array[i - 1, initial_state_max_index]
