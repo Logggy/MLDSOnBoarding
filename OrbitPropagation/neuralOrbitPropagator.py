@@ -2,6 +2,9 @@ from orbitPropagator import twoBodyProp
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
+from tensorflow import keras
+from tensorflow.keras import layers
+
 
 ## So this will be using tensorflow and I think I'll just make this into one full script that does everything
 ## the first thing to do will be to make training datasets - luckily I formatted my two body orbit propagator to do this with ease
@@ -40,3 +43,14 @@ testing_state_array, testing_time_array = twoBodyProp(
     0,
     export_time=True,
 )
+
+## Since the state array is fully time dependant, we want to predict it at each step from the time alone
+
+## Initialize training variables
+
+train_x = training_state_array[:, 0]
+train_y = training_state_array[:, 1]
+train_z = training_state_array[:, 2]
+train_vx = training_state_array[:, 3]
+train_vy = training_state_array[:, 4]
+train_vz = training_state_array[:, 5]
