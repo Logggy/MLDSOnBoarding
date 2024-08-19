@@ -19,16 +19,17 @@ m_earth = 5.972 * 10**24  # kg
 altitude_test = 8 * 10**6  # m
 altitude_train = 5 * 10**6  # m
 
-training_state_array = twoBodyProp(
+training_state_array, training_time_array = twoBodyProp(
     6.371 * 10**6 + altitude_train,  # radius of the earth plus however many meters
     0,
     0,
     0,
     np.sqrt((G * m_earth) / ((6.371 * 10**6) + altitude_train)),
     0,
+    export_time=True,
 )
 
-testing_state_array = twoBodyProp(
+testing_state_array, testing_time_array = twoBodyProp(
     6.371 * 10**6 + altitude_test,  # radius of the earth plus however many meters
     0,
     0,
@@ -37,4 +38,5 @@ testing_state_array = twoBodyProp(
         (G * m_earth) / ((6.371 * 10**6) + altitude_test)
     ),  # you simply get the two body velocity from this by setting gravitational force equal to centripetal force
     0,
+    export_time=True,
 )
