@@ -57,7 +57,7 @@ def twoBodyProp(
 
     while integrator.successful():
         integrator.integrate(integrator.t + dt)
-        time_array = np.append(time_array, [[integrator.t]], axis=0)
+        time_array = np.append(time_array, [integrator.t], axis=0)
         state_array = np.append(state_array, [integrator.y], axis=0)
         ## Just find some way to tell it passed the initial condition
         ## when it starts we will be getting further away from each x, y, z initial condition
@@ -78,7 +78,17 @@ def twoBodyProp(
 
         i += 1
     if export_time:
-        return state_array, time_array
+        total_array = np.zeros((len(time_array), 7))
+
+        for i in range(len(time_array)):
+            total_array[i, 0] = state_array[i, 0]
+            total_array[i, 1] = state_array[i, 1]
+            total_array[i, 2] = state_array[i, 2]
+            total_array[i, 3] = state_array[i, 3]
+            total_array[i, 4] = state_array[i, 4]
+            total_array[i, 5] = state_array[i, 5]
+            total_array[i, 6] = time_array[i]
+        return total_array
     else:
         return state_array
 

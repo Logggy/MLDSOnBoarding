@@ -22,7 +22,7 @@ m_earth = 5.972 * 10**24  # kg
 altitude_test = 8 * 10**6  # m
 altitude_train = 5 * 10**6  # m
 
-training_state_array, training_time_array = twoBodyProp(
+training_state_array = twoBodyProp(
     6.371 * 10**6 + altitude_train,  # radius of the earth plus however many meters
     0,
     0,
@@ -32,7 +32,7 @@ training_state_array, training_time_array = twoBodyProp(
     export_time=True,
 )
 
-testing_state_array, testing_time_array = twoBodyProp(
+testing_state_array = twoBodyProp(
     6.371 * 10**6 + altitude_test,  # radius of the earth plus however many meters
     0,
     0,
@@ -44,13 +44,5 @@ testing_state_array, testing_time_array = twoBodyProp(
     export_time=True,
 )
 
-## Since the state array is fully time dependant, we want to predict it at each step from the time alone
 
-## Initialize training variables
-
-train_x = training_state_array[:, 0]
-train_y = training_state_array[:, 1]
-train_z = training_state_array[:, 2]
-train_vx = training_state_array[:, 3]
-train_vy = training_state_array[:, 4]
-train_vz = training_state_array[:, 5]
+print(training_state_array)
