@@ -4,6 +4,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from tensorflow import keras
 from tensorflow.keras import layers
+import pandas as pd
 from orbitPlotter import plotter
 
 
@@ -48,44 +49,68 @@ testing_state_array = twoBodyProp(
 
 # Outputs of arrays are now: x, y, z, vx, vy, vz, time
 ## NOW we try and make this work, they all have the same shape
+## Now we need to make it so the initial condition is known at every step!
+train_features = training_state_array[1:, 6].reshape(
+    -1, 1
+)  # Elapsed time for each step
+train_initial_conditions = np.repeat(
+    training_state_array[0, :6].reshape(1, -1), train_features.shape[0], axis=0
+)
 
-train_features = training_state_array[:, 6]
-test_features = testing_state_array[:, 6]
+# squash train_features and train initial conditions into one
+train_features = np.hstack([train_initial_conditions, train_features])
 
-## This right here is why I went through all that trouble to change the output of my function in orbitPropagator,
-# turns out this is the solution!!!
-train_features = train_features.reshape(-1, 1)
-test_features = test_features.reshape(-1, 1)
+# train_features = train_features[1:3]
+train_labels = training_state_array[
+    1:, :6
+]  # Predicting states after the initial condition
+test_features = testing_state_array[1:, 6].reshape(-1, 1)  # Elapsed time for each step
+test_initial_conditions = np.repeat(
+    testing_state_array[0, :6].reshape(1, -1), test_features.shape[0], axis=0
+)
+test_labels = testing_state_array[
+    1:, :6
+]  # Predicting states after the initial condition
 
-train_labels = training_state_array[:, :6]
-test_labels = testing_state_array[:, :6]
+# train_labels = train_labels[1:3]
+
+# squash train_features and train initial conditions into one
+test_features = np.hstack([test_initial_conditions, test_features])
+## So now we have two inputs - the time, and an array of the initial conditions so the model remembers
 
 
+# Normalize train_features (time) and train_initial_conditions (initial state)
+train_features_normalizer = layers.Normalization(axis=-1)
+train_features_normalizer.adapt(train_features)
+
+
+# Build the model using keras.Sequential
 def build_and_compile_model(norm):
     model = keras.Sequential(
         [
+            # Time normalization layer
             norm,
-            layers.Dense(64, activation="relu"),
-            layers.Dense(64, activation="relu"),
-            layers.Dense(1),
+            layers.Dense(50, activation="relu"),
+            layers.Dense(10, activation="relu"),
+            layers.Dense(6),
         ]
     )
 
-    model.compile(loss="mean_absolute_error", optimizer=tf.keras.optimizers.Adam(0.001))
+    model.compile(loss="mean_absolute_error", optimizer=tf.keras.optimizers.Adam(0.01))
     return model
 
 
-train_features_normalizer = layers.Normalization(
-    axis=None,
-)
-train_features_normalizer.adapt(train_features)
-
 dnn_train_features_model = build_and_compile_model(train_features_normalizer)
 history = dnn_train_features_model.fit(
-    train_features, train_labels, validation_split=0.2, verbose=0, epochs=100
+    train_features,
+    train_labels,
+    validation_split=0.2,
+    verbose=1,
+    epochs=10**2,
 )
 
 
+# Plotting the loss
 def plot_loss(history):
     plt.plot(history.history["loss"], label="loss")
     plt.plot(history.history["val_loss"], label="val_loss")
@@ -96,14 +121,13 @@ def plot_loss(history):
     plt.grid(True)
 
 
-# plot_loss(history)
+plot_loss(history)
+plt.show()
 
-## Import graphing from last time:
-x = np.linspace(0, 12000, 100)
-y = dnn_train_features_model.predict(x)
+test_results = dnn_train_features_model.evaluate(test_features, test_labels, verbose=0)
 
-# plotter(y)
-
-test_results = dnn_train_features_model.evaluate(test_features, test_labels)
-
-print(test_results)
+test_predictions = dnn_train_features_model.predict(train_features)
+# print(test_predictions)
+# plotter(test_predictions)
+# plotter(testing_state_array)
+# plt.show()

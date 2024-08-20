@@ -83,21 +83,19 @@ def plotter(state_array):
     ax_vxyz.set_ylabel("Velocity (m / s)")
     ax_vxyz.legend()
 
-    plt.show()
 
+# G = 6.67 * 10**-11  # N*m^2/kg^2
+# m_earth = 5.972 * 10**24  # kg
+# altitude = 5 * 10**6  # m
 
-G = 6.67 * 10**-11  # N*m^2/kg^2
-m_earth = 5.972 * 10**24  # kg
-altitude = 5 * 10**6  # m
-
-plotter(
-    twoBodyProp(
-        6.371 * 10**6 + altitude,  # radius of the earth plus however many meters
-        0,
-        0,
-        0,
-        np.sqrt((G * m_earth) / ((6.371 * 10**6) + altitude)),
-        0,
-        1000,
-    )
-)
+# plotter(
+#     twoBodyProp(
+#         6.371 * 10**6 + altitude,  # radius of the earth plus however many meters
+#         0,
+#         0,
+#         0,
+#         np.sqrt((G * m_earth) / ((6.371 * 10**6) + altitude)),
+#         0,
+#         1000,
+#     )
+# )
