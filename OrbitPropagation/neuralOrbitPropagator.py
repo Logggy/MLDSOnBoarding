@@ -96,10 +96,14 @@ def plot_loss(history):
     plt.grid(True)
 
 
-plot_loss(history)
+# plot_loss(history)
 
 ## Import graphing from last time:
-x = np.linspace(0, 12000, 1000)
+x = np.linspace(0, 12000, 100)
 y = dnn_train_features_model.predict(x)
 
-plotter(y)
+# plotter(y)
+
+test_results = dnn_train_features_model.evaluate(test_features, test_labels)
+
+print(test_results)
