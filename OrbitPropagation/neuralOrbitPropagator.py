@@ -129,5 +129,5 @@ test_results = dnn_train_features_model.evaluate(test_features, test_labels, ver
 test_predictions = dnn_train_features_model.predict(train_features)
 # print(test_predictions)
 # plotter(test_predictions)
-# plotter(testing_state_array)
-# plt.show()
+plotter(testing_state_array)
+plt.show()
