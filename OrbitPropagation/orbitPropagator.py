@@ -109,3 +109,9 @@ def twoBodyProp(
 #         0,
 #     )
 # )
+
+
+## Here I will add a converter that can generate the orbit elements from cartesian elements
+
+def cartesianToOrbitalElements(cartesian_state_vector):
+    

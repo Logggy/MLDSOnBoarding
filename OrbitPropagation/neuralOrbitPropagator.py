@@ -31,6 +31,7 @@ training_state_array = twoBodyProp(
     0,
     np.sqrt((G * m_earth) / ((6.371 * 10**6) + altitude_train)),
     0,
+    time_step=1,
     export_time=True,
 )
 
@@ -90,13 +91,13 @@ def build_and_compile_model(norm):
         [
             # Time normalization layer
             norm,
-            layers.Dense(50, activation="relu"),
-            layers.Dense(10, activation="relu"),
+            layers.Dense(20, activation="relu"),
+            layers.Dense(20, activation="relu"),
             layers.Dense(6),
         ]
     )
 
-    model.compile(loss="mean_absolute_error", optimizer=tf.keras.optimizers.Adam(0.01))
+    model.compile(loss="mean_absolute_error", optimizer=tf.keras.optimizers.Adam(0.05))
     return model
 
 
@@ -106,7 +107,7 @@ history = dnn_train_features_model.fit(
     train_labels,
     validation_split=0.2,
     verbose=1,
-    epochs=10**2,
+    epochs=3 * 10**2,
 )
 
 
@@ -128,6 +129,6 @@ test_results = dnn_train_features_model.evaluate(test_features, test_labels, ver
 
 test_predictions = dnn_train_features_model.predict(train_features)
 # print(test_predictions)
-# plotter(test_predictions)
+plotter(test_predictions)
 plotter(testing_state_array)
 plt.show()
