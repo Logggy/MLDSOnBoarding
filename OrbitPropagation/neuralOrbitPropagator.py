@@ -4,6 +4,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from tensorflow import keras
 from tensorflow.keras import layers
+from orbitPlotter import plotter
 
 
 ## So this will be using tensorflow and I think I'll just make this into one full script that does everything
@@ -51,10 +52,13 @@ testing_state_array = twoBodyProp(
 train_features = training_state_array[:, 6]
 test_features = testing_state_array[:, 6]
 
+## This right here is why I went through all that trouble to change the output of my function in orbitPropagator,
+# turns out this is the solution!!!
+train_features = train_features.reshape(-1, 1)
+test_features = test_features.reshape(-1, 1)
+
 train_labels = training_state_array[:, :6]
 test_labels = testing_state_array[:, :6]
-
-normalizer = tf.keras.layers.Normalization(axis=-1)
 
 
 def build_and_compile_model(norm):
@@ -72,9 +76,30 @@ def build_and_compile_model(norm):
 
 
 train_features_normalizer = layers.Normalization(
-    input_shape=[
-        1,
-    ],
     axis=None,
 )
 train_features_normalizer.adapt(train_features)
+
+dnn_train_features_model = build_and_compile_model(train_features_normalizer)
+history = dnn_train_features_model.fit(
+    train_features, train_labels, validation_split=0.2, verbose=0, epochs=100
+)
+
+
+def plot_loss(history):
+    plt.plot(history.history["loss"], label="loss")
+    plt.plot(history.history["val_loss"], label="val_loss")
+    plt.ylim([0, 10])
+    plt.xlabel("Epoch")
+    plt.ylabel("Error [X]")
+    plt.legend()
+    plt.grid(True)
+
+
+plot_loss(history)
+
+## Import graphing from last time:
+x = np.linspace(0, 12000, 1000)
+y = dnn_train_features_model.predict(x)
+
+plotter(y)
