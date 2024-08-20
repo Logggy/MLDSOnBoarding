@@ -45,4 +45,36 @@ testing_state_array = twoBodyProp(
 )
 
 
-print(training_state_array)
+# Outputs of arrays are now: x, y, z, vx, vy, vz, time
+## NOW we try and make this work, they all have the same shape
+
+train_features = training_state_array[:, 6]
+test_features = testing_state_array[:, 6]
+
+train_labels = training_state_array[:, :6]
+test_labels = testing_state_array[:, :6]
+
+normalizer = tf.keras.layers.Normalization(axis=-1)
+
+
+def build_and_compile_model(norm):
+    model = keras.Sequential(
+        [
+            norm,
+            layers.Dense(64, activation="relu"),
+            layers.Dense(64, activation="relu"),
+            layers.Dense(1),
+        ]
+    )
+
+    model.compile(loss="mean_absolute_error", optimizer=tf.keras.optimizers.Adam(0.001))
+    return model
+
+
+train_features_normalizer = layers.Normalization(
+    input_shape=[
+        1,
+    ],
+    axis=None,
+)
+train_features_normalizer.adapt(train_features)
