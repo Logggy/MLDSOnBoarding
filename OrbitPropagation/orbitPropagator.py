@@ -112,6 +112,90 @@ def twoBodyProp(
 
 
 ## Here I will add a converter that can generate the orbit elements from cartesian elements
+## This is intended to take an input state in cartesian coordinates and change it into the state vector
 
-def cartesianToOrbitalElements(cartesian_state_vector):
-    
+
+def cartesianToOrbitalElements(
+    cartesian_state_vector, central_body_mass, isMeanAnomaly=False
+):
+    ## Split into a position and a velocity vector
+    position = cartesian_state_vector[:, :3]
+    velocity = cartesian_state_vector[:, 3:6]
+
+    ## standard gravitational parameter calculation, please enter mass in kg
+    G = 6.67 * 10**-11  # N*m^2/kg^2
+    mu = G * central_body_mass
+
+    ## I give credit to René Schwarz, thank you
+    ## Find the orbital momentum vector h
+
+    h = np.cross(position, velocity)
+
+    ##Obtain the eccentricity vector e
+
+    e_vector = (np.cross(velocity, h) / mu) - (position / np.linalg.norm(position))
+
+    ## Determine n, the vector pointing towards the ascending node
+
+    n = np.transpose([-h[1], h[0], 0])
+
+    ## determine the true anomaly
+    true_anomaly = 0
+    if np.dot(position, velocity) >= 0:
+        true_anomaly = np.arccos(
+            np.dot(e_vector, position)
+            / (np.linalg.norm(e_vector) * np.linalg.norm(position))
+        )
+    else:
+        true_anomaly = 2 * np.pi - (
+            np.arccos(
+                np.dot(e_vector, position)
+                / (np.linalg.norm(e_vector) * np.linalg.norm(position))
+            )
+        )
+
+    # We calculate the orbital inclination by using the orbital momentum vector
+
+    i = np.arccos(h[2] / np.linalg.norm(h))
+
+    # Eccentricity is just the magnitude of the eccentricity vector
+
+    e = np.linalg.norm(e_vector)
+
+    ## We also need the eccentric anomaly
+
+    eccentric_anomaly = 2 * np.arctan(
+        np.tan(true_anomaly / 2) / np.sqrt((1 + e) / (1 - e))
+    )
+
+    ## Right Ascension of the ascending node
+
+    RA_ascending_node = 0
+
+    if n[1] >= 0:
+        RA_ascending_node = np.arccos(n[0] / np.linalg.norm(n))
+    else:
+        RA_ascending_node = 2 * np.pi - np.arccos(n[0] / np.linalg.norm(n))
+
+    # Argument of periapsis
+
+    arg_peri = 0
+
+    if e_vector[2] >= 0:
+        arg_peri = np.arccos(
+            np.dot(n, e_vector) / (np.linalg.norm(n) * np.linalg.norm(e_vector))
+        )
+
+    ## Compute the mean anomaly, in case you want it
+
+    mean_anomaly = eccentric_anomaly - e * np.sin(eccentric_anomaly)
+
+    ## Compute semimajor axis
+
+    a = 1 / ((2 / np.linalg.norm(position)) - (np.linalg.norm(velocity) ** 2 / mu))
+
+    ## we output semimajor axis, eccentricity, inclination, RAAN, Argument of periapsis, true anomaly (or mean anomaly whichever you want)
+    if isMeanAnomaly:
+        return [a, e, i, RA_ascending_node, arg_peri, mean_anomaly]
+    else:
+        return [a, e, i, RA_ascending_node, arg_peri, true_anomaly]
