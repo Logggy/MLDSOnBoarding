@@ -115,12 +115,13 @@ def twoBodyProp(
 ## This is intended to take an input state in cartesian coordinates and change it into the state vector
 
 
+## For now circular orbits are broken, and orbits with zero inclination have ambiguous RAAN and whatnot - I'm just going to convert it to polar maybe
 def cartesianToOrbitalElements(
     cartesian_state_vector, central_body_mass, isMeanAnomaly=False
 ):
     ## Split into a position and a velocity vector
-    position = cartesian_state_vector[:, :3]
-    velocity = cartesian_state_vector[:, 3:6]
+    position = cartesian_state_vector[:3]
+    velocity = cartesian_state_vector[3:6]
 
     ## standard gravitational parameter calculation, please enter mass in kg
     G = 6.67 * 10**-11  # N*m^2/kg^2
@@ -130,16 +131,15 @@ def cartesianToOrbitalElements(
     ## Find the orbital momentum vector h
 
     h = np.cross(position, velocity)
-
     ##Obtain the eccentricity vector e
-
     e_vector = (np.cross(velocity, h) / mu) - (position / np.linalg.norm(position))
-
+    # e_vector = [e_vector[0], e_vector[1], e_vector[2]]
     ## Determine n, the vector pointing towards the ascending node
 
     n = np.transpose([-h[1], h[0], 0])
 
     ## determine the true anomaly
+
     true_anomaly = 0
     if np.dot(position, velocity) >= 0:
         true_anomaly = np.arccos(
@@ -185,6 +185,12 @@ def cartesianToOrbitalElements(
         arg_peri = np.arccos(
             np.dot(n, e_vector) / (np.linalg.norm(n) * np.linalg.norm(e_vector))
         )
+    else:
+        arg_peri = 2 * np.pi - (
+            np.arccos(
+                np.dot(n, e_vector) / (np.linalg.norm(n) * np.linalg.norm(e_vector))
+            )
+        )
 
     ## Compute the mean anomaly, in case you want it
 
@@ -199,3 +205,40 @@ def cartesianToOrbitalElements(
         return [a, e, i, RA_ascending_node, arg_peri, mean_anomaly]
     else:
         return [a, e, i, RA_ascending_node, arg_peri, true_anomaly]
+
+
+# cartesian_initial_state = [
+#     6.371 * 10**6 + 5 * 10**6,  # radius of the earth plus however many meters
+#     0,
+#     0,
+#     0,
+#     np.sqrt((G * 5.972 * 10**24) / ((6.371 * 10**6) + 5 * 10**6)) + 500,
+#     200,
+# ]
+# orbitalElements = cartesianToOrbitalElements(cartesian_initial_state, m_earth)
+# print("x position: ", 6.371 * 10**6 + 5 * 10**6)
+# print("y velocity: ", np.sqrt((G * 5.972 * 10**24) / ((6.371 * 10**6) + 5 * 10**6)))
+
+# print("Orbital Elements:")
+# print("Semimajor axis: ", orbitalElements[0])
+# print("Eccentricity: ", orbitalElements[1])
+# print("Inclination: ", orbitalElements[2])
+# print("RAAN: ", orbitalElements[3])
+# print("Argument of periapsis: ", orbitalElements[4])
+# print("True Anomaly: ", orbitalElements[5])
+
+
+# cartesian_state_array = twoBodyProp(
+#     cartesian_initial_state[0],
+#     cartesian_initial_state[1],
+#     cartesian_initial_state[2],
+#     cartesian_initial_state[3],
+#     cartesian_initial_state[4],
+#     cartesian_initial_state[5],
+# )
+
+# for i in range(len(cartesian_state_array)):
+#     print(
+#         "True Anomaly: ",
+#         cartesianToOrbitalElements(cartesian_state_array[i], m_earth)[5],
+#     )
