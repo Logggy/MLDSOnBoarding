@@ -180,7 +180,22 @@ def cartesianToOrbitalElements(
     ## Compute semimajor axis
 
     a = 1 / ((2 / np.linalg.norm(position)) - (np.linalg.norm(velocity) ** 2 / mu))
-
+    ## I need a little catch all for when e is zero- this is probably wrong but whatever
+    if e == 0:
+        RA_ascending_node = (
+            np.arccos(n[0] / np.linalg.norm(n)) if np.linalg.norm(n) != 0 else 0
+        )
+        arg_peri = 0
+        # for true anomaly I will manually set a zero point
+        # to do this we will just find the angle of wherever it's at using circle math
+        # Since orbits are always at least two dimensional if you don't count time and some other things
+        # we should only have to consider two cardinal directions
+        # This is a bandaid I have not thought too much about but it should be good enough, the orbit is perfectly circular I can
+        # do whatever I want
+        if position[0] != 0 or velocity[0] != 0:
+            true_anomaly = np.cos(position[0] / a)
+        else:
+            true_anomaly = np.sin(position[2] / a)
     ## we output semimajor axis, eccentricity, inclination, RAAN, Argument of periapsis, true anomaly (or mean anomaly whichever you want)
     if isMeanAnomaly:
         return [a, e, i, RA_ascending_node, arg_peri, mean_anomaly]

@@ -1,4 +1,8 @@
-from orbitPropagator import twoBodyProp, cartesianToOrbitalElements
+from orbitPropagator import (
+    twoBodyProp,
+    cartesianToOrbitalElements,
+    orbitalElementsToCartesian,
+)
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -155,10 +159,29 @@ def plot_loss(history):
 plot_loss(history)
 plt.show()
 
-test_results = dnn_train_features_model.evaluate(test_features, test_labels, verbose=0)
+test_results = dnn_train_features_model.evaluate(
+    train_features, train_labels, verbose=0
+)
 
 test_predictions = dnn_train_features_model.predict(train_features)
+test_prediction_array_orbitalE = np.zeros((len(test_predictions), 6))
 # print(test_predictions)
-plotter(test_predictions)
-plotter(testing_state_array)
+for i in range(len(test_predictions)):
+    for j in range(6):
+        if j < 5:
+            test_prediction_array_orbitalE[i, j] = train_features[i, j]
+        else:
+            test_prediction_array_orbitalE[i, j] = test_predictions[i]
+
+## Convert to cartesian
+test_prediction_array_cartesian = np.zeros((len(test_predictions), 6))
+for i in range(len(train_features)):
+    element_to_cart = orbitalElementsToCartesian(
+        test_prediction_array_orbitalE[i], m_earth
+    )
+    for j in range(6):
+        test_prediction_array_cartesian[i, j] = element_to_cart[j]
+
+plotter(test_prediction_array_cartesian)
+plotter(training_state_array)
 plt.show()
