@@ -93,24 +93,6 @@ def twoBodyProp(
         return state_array
 
 
-## For testing purposes only vvvvv
-
-# G = 6.67 * 10**-11  # N*m^2/kg^2
-# m_earth = 5.972 * 10**24  # kg
-# altitude = 5 * 10**6  # m
-
-# print(
-#     twoBodyProp(
-#         6.371 * 10**6 + altitude,  # radius of the earth plus however many meters
-#         0,
-#         0,
-#         0,
-#         np.sqrt((G * m_earth) / ((6.371 * 10**6) + altitude)),
-#         0,
-#     )
-# )
-
-
 ## Here I will add a converter that can generate the orbit elements from cartesian elements
 ## This is intended to take an input state in cartesian coordinates and change it into the state vector
 
@@ -133,7 +115,6 @@ def cartesianToOrbitalElements(
     h = np.cross(position, velocity)
     ##Obtain the eccentricity vector e
     e_vector = (np.cross(velocity, h) / mu) - (position / np.linalg.norm(position))
-    # e_vector = [e_vector[0], e_vector[1], e_vector[2]]
     ## Determine n, the vector pointing towards the ascending node
 
     n = np.transpose([-h[1], h[0], 0])
@@ -207,38 +188,67 @@ def cartesianToOrbitalElements(
         return [a, e, i, RA_ascending_node, arg_peri, true_anomaly]
 
 
-# cartesian_initial_state = [
-#     6.371 * 10**6 + 5 * 10**6,  # radius of the earth plus however many meters
-#     0,
-#     0,
-#     0,
-#     np.sqrt((G * 5.972 * 10**24) / ((6.371 * 10**6) + 5 * 10**6)) + 500,
-#     200,
-# ]
-# orbitalElements = cartesianToOrbitalElements(cartesian_initial_state, m_earth)
-# print("x position: ", 6.371 * 10**6 + 5 * 10**6)
-# print("y velocity: ", np.sqrt((G * 5.972 * 10**24) / ((6.371 * 10**6) + 5 * 10**6)))
-
-# print("Orbital Elements:")
-# print("Semimajor axis: ", orbitalElements[0])
-# print("Eccentricity: ", orbitalElements[1])
-# print("Inclination: ", orbitalElements[2])
-# print("RAAN: ", orbitalElements[3])
-# print("Argument of periapsis: ", orbitalElements[4])
-# print("True Anomaly: ", orbitalElements[5])
+## Chat GPT just spit this out so I'll just check if it works - I had it do the other way to check and it seemed pretty close
+## Chat was right, I just had to change a couple of things!
+## Essentially this works some circle magic assuming its in a nice plane, then rotates it back to reality
 
 
-# cartesian_state_array = twoBodyProp(
-#     cartesian_initial_state[0],
-#     cartesian_initial_state[1],
-#     cartesian_initial_state[2],
-#     cartesian_initial_state[3],
-#     cartesian_initial_state[4],
-#     cartesian_initial_state[5],
-# )
+def orbitalElementsToCartesian(orbital_state_vector, central_body_mass):
+    G = 6.67 * 10**-11  # N*m^2/kg^2
+    mu = G * central_body_mass
 
-# for i in range(len(cartesian_state_array)):
-#     print(
-#         "True Anomaly: ",
-#         cartesianToOrbitalElements(cartesian_state_array[i], m_earth)[5],
-#     )
+    a = orbital_state_vector[0]
+    e = orbital_state_vector[1]
+    i = orbital_state_vector[2]
+    Omega = orbital_state_vector[3]  # RAAN
+    omega = orbital_state_vector[4]  # perigee
+    nu = orbital_state_vector[5]
+
+    # Compute semi-latus rectum
+    p = a * (1 - e**2)
+
+    # Calculate position and velocity in the orbital plane
+    r = p / (1 + e * np.cos(nu))
+    x_p = r * np.cos(nu)
+    y_p = r * np.sin(nu)
+    v_x_p = -np.sqrt(mu / p) * np.sin(nu)
+    v_y_p = np.sqrt(mu / p) * (e + np.cos(nu))
+
+    # Transformation matrices
+    ## Apparently all inputs have to be negative to work properly
+    R3_Omega = np.array(
+        [
+            [np.cos(-Omega), np.sin(-Omega), 0],
+            [-np.sin(-Omega), np.cos(-Omega), 0],
+            [0, 0, 1],
+        ]
+    )
+
+    R1_i = np.array(
+        [[1, 0, 0], [0, np.cos(-i), np.sin(-i)], [0, -np.sin(-i), np.cos(-i)]]
+    )
+
+    R3_omega = np.array(
+        [
+            [np.cos(-omega), np.sin(-omega), 0],
+            [-np.sin(-omega), np.cos(-omega), 0],
+            [0, 0, 1],
+        ]
+    )
+
+    # Position and velocity vectors in the orbital frame
+    r_orbital = np.array([x_p, y_p, 0])
+    v_orbital = np.array([v_x_p, v_y_p, 0])
+
+    # Convert to the inertial frame
+    r_inertial = R3_Omega @ R1_i @ R3_omega @ r_orbital
+    v_inertial = R3_Omega @ R1_i @ R3_omega @ v_orbital
+
+    return [
+        r_inertial[0],
+        r_inertial[1],
+        r_inertial[2],
+        v_inertial[0],
+        v_inertial[1],
+        v_inertial[2],
+    ]

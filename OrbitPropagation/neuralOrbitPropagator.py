@@ -106,8 +106,6 @@ for i in range(len(test_features)):
 
 train_labels = training_state_array_orbitalE[:, -1]
 test_labels = testing_state_array_orbitalE[:, -1]
-print("train_features: ", train_features)
-print("train_labels: ", train_labels)
 # Normalize train_features (time) and train_initial_conditions (initial state)
 train_features_normalizer = layers.Normalization(axis=-1)
 train_features_normalizer.adapt(train_features)
@@ -125,7 +123,11 @@ def build_and_compile_model(norm):
         ]
     )
 
-    model.compile(loss="mean_absolute_error", optimizer=tf.keras.optimizers.Adam(0.001))
+    model.compile(
+        loss="mean_absolute_error",
+        optimizer=tf.keras.optimizers.Adam(0.01),
+        metrics=["accuracy"],
+    )
     return model
 
 
