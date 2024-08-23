@@ -181,7 +181,7 @@ def cartesianToOrbitalElements(
 
     a = 1 / ((2 / np.linalg.norm(position)) - (np.linalg.norm(velocity) ** 2 / mu))
     ## I need a little catch all for when e is zero- this is probably wrong but whatever
-    if e == 0:
+    if e < 10**-10:
         RA_ascending_node = (
             np.arccos(n[0] / np.linalg.norm(n)) if np.linalg.norm(n) != 0 else 0
         )

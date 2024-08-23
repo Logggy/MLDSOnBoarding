@@ -39,6 +39,34 @@ training_state_array = twoBodyProp(
     export_time=True,
 )
 
+training_state_array2 = twoBodyProp(
+    6.371 * 10**6
+    + altitude_train
+    + 2000000,  # radius of the earth plus however many meters
+    45000,
+    4000,
+    300,
+    np.sqrt(
+        (G * m_earth) / ((6.371 * 10**6) + altitude_test)
+    ),  # you simply get the two body velocity from this by setting gravitational force equal to centripetal force
+    200,
+    export_time=True,
+)
+
+training_state_array3 = twoBodyProp(
+    6.371 * 10**6
+    + altitude_train
+    + 4000,  # radius of the earth plus however many meters
+    0,
+    0,
+    0,
+    np.sqrt(
+        (G * m_earth) / ((6.371 * 10**6) + altitude_train + 4000)
+    ),  # you simply get the two body velocity from this by setting gravitational force equal to centripetal force
+    0,
+    export_time=True,
+)
+
 testing_state_array = twoBodyProp(
     6.371 * 10**6 + altitude_test,  # radius of the earth plus however many meters
     0,
@@ -83,6 +111,11 @@ testing_state_array = twoBodyProp(
 # test_features = np.hstack([test_initial_conditions, test_features])
 ## So now we have two inputs - the time, and an array of the initial conditions so the model remembers
 
+
+## Converge into a huge training set
+# training_state_array = np.vstack(
+#     [training_state_array1, training_state_array2, training_state_array3]
+# )
 
 ## Convert the arrays to orbital elements
 training_state_array_orbitalE = np.zeros((len(training_state_array), 6))
@@ -129,7 +162,7 @@ def build_and_compile_model(norm):
 
     model.compile(
         loss="mean_absolute_error",
-        optimizer=tf.keras.optimizers.Adam(0.01),
+        optimizer=tf.keras.optimizers.Adam(0.1),
         metrics=["accuracy"],
     )
     return model
@@ -159,29 +192,27 @@ def plot_loss(history):
 plot_loss(history)
 plt.show()
 
-test_results = dnn_train_features_model.evaluate(
-    train_features, train_labels, verbose=0
-)
+test_results = dnn_train_features_model.evaluate(test_features, test_labels, verbose=0)
 
-test_predictions = dnn_train_features_model.predict(train_features)
+test_predictions = dnn_train_features_model.predict(test_features)
 test_prediction_array_orbitalE = np.zeros((len(test_predictions), 6))
 # print(test_predictions)
 for i in range(len(test_predictions)):
     for j in range(6):
         if j < 5:
-            test_prediction_array_orbitalE[i, j] = train_features[i, j]
+            test_prediction_array_orbitalE[i, j] = test_features[i, j]
         else:
             test_prediction_array_orbitalE[i, j] = test_predictions[i]
-
+print("Orbital E: ", test_prediction_array_orbitalE)
 ## Convert to cartesian
 test_prediction_array_cartesian = np.zeros((len(test_predictions), 6))
-for i in range(len(train_features)):
+for i in range(len(test_prediction_array_cartesian)):
     element_to_cart = orbitalElementsToCartesian(
         test_prediction_array_orbitalE[i], m_earth
     )
     for j in range(6):
         test_prediction_array_cartesian[i, j] = element_to_cart[j]
-
+print("Cartesian: ", test_prediction_array_cartesian)
 plotter(test_prediction_array_cartesian)
-plotter(training_state_array)
+plotter(testing_state_array)
 plt.show()
