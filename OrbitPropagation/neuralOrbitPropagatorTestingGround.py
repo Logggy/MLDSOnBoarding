@@ -28,6 +28,53 @@ m_earth = 5.972 * 10**24  # kg
 altitude_test = 8 * 10**6  # m
 altitude_train = 5 * 10**6  # m
 
+broken_orbit = [
+    1.83789060e07,
+    9.08747775e-02,
+    3.88722922e-01,
+    4.04577817e00,
+    2.10304796e00,
+    1.00097003e00,
+]
+
+broken_cartesian_orbit = orbitalElementsToCartesian(broken_orbit, m_earth)
+broken_orbit_prop = twoBodyProp(
+    broken_cartesian_orbit[0],
+    broken_cartesian_orbit[1],
+    broken_cartesian_orbit[2],
+    broken_cartesian_orbit[3],
+    broken_cartesian_orbit[4],
+    broken_cartesian_orbit[5],
+    export_time=True,
+    time_step=50,
+)
+
+plotter(broken_orbit_prop)
+
+broken_orbit_mod = [
+    1.83789060e07,
+    9.08747775e-02,
+    np.pi / 4,
+    4.04577817e00,
+    2.10304796e00,
+    1.00097003e00,
+]
+
+broken_cartesian_orbit = orbitalElementsToCartesian(broken_orbit_mod, m_earth)
+broken_orbit_prop = twoBodyProp(
+    broken_cartesian_orbit[0],
+    broken_cartesian_orbit[1],
+    broken_cartesian_orbit[2],
+    broken_cartesian_orbit[3],
+    broken_cartesian_orbit[4],
+    broken_cartesian_orbit[5],
+    export_time=True,
+    time_step=50,
+)
+
+plotter(broken_orbit_prop)
+plt.show()
+
 training_state_array = twoBodyProp(
     6.371 * 10**6 + 5 * 10**6,  # radius of the earth plus however many meters
     0,

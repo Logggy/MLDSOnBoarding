@@ -99,7 +99,7 @@ def twoBodyProp(
 
 ## For now circular orbits are broken, and orbits with zero inclination have ambiguous RAAN and whatnot - I'm just going to convert it to polar maybe
 def cartesianToOrbitalElements(
-    cartesian_state_vector, central_body_mass, isMeanAnomaly=False
+    cartesian_state_vector, central_body_mass, isMeanAnomaly=False, isTime=False
 ):
     ## Split into a position and a velocity vector
     position = cartesian_state_vector[:3]
@@ -196,11 +196,36 @@ def cartesianToOrbitalElements(
             true_anomaly = np.cos(position[0] / a)
         else:
             true_anomaly = np.sin(position[2] / a)
+    if i == 0:  # :(
+        RA_ascending_node = 0
+        arg_peri = 0
     ## we output semimajor axis, eccentricity, inclination, RAAN, Argument of periapsis, true anomaly (or mean anomaly whichever you want)
     if isMeanAnomaly:
-        return [a, e, i, RA_ascending_node, arg_peri, mean_anomaly]
+        if isTime:
+            return [
+                a,
+                e,
+                i,
+                RA_ascending_node,
+                arg_peri,
+                mean_anomaly,
+                cartesian_state_vector[6],
+            ]
+        else:
+            return [a, e, i, RA_ascending_node, arg_peri, mean_anomaly]
     else:
-        return [a, e, i, RA_ascending_node, arg_peri, true_anomaly]
+        if isTime:
+            return [
+                a,
+                e,
+                i,
+                RA_ascending_node,
+                arg_peri,
+                true_anomaly,
+                cartesian_state_vector[6],
+            ]
+        else:
+            return [a, e, i, RA_ascending_node, arg_peri, true_anomaly]
 
 
 ## Chat GPT just spit this out so I'll just check if it works - I had it do the other way to check and it seemed pretty close
@@ -208,7 +233,7 @@ def cartesianToOrbitalElements(
 ## Essentially this works some circle magic assuming its in a nice plane, then rotates it back to reality
 
 
-def orbitalElementsToCartesian(orbital_state_vector, central_body_mass):
+def orbitalElementsToCartesian(orbital_state_vector, central_body_mass, isTime=False):
     G = 6.67 * 10**-11  # N*m^2/kg^2
     mu = G * central_body_mass
 
@@ -240,7 +265,11 @@ def orbitalElementsToCartesian(orbital_state_vector, central_body_mass):
     )
 
     R1_i = np.array(
-        [[1, 0, 0], [0, np.cos(-i), np.sin(-i)], [0, -np.sin(-i), np.cos(-i)]]
+        [
+            [1, 0, 0],
+            [0, np.cos(-1 * i), np.sin(-1 * i)],
+            [0, -np.sin(-1 * i), np.cos(-1 * i)],
+        ]
     )
 
     R3_omega = np.array(
@@ -258,12 +287,23 @@ def orbitalElementsToCartesian(orbital_state_vector, central_body_mass):
     # Convert to the inertial frame
     r_inertial = R3_Omega @ R1_i @ R3_omega @ r_orbital
     v_inertial = R3_Omega @ R1_i @ R3_omega @ v_orbital
+    if isTime:
 
-    return [
-        r_inertial[0],
-        r_inertial[1],
-        r_inertial[2],
-        v_inertial[0],
-        v_inertial[1],
-        v_inertial[2],
-    ]
+        return [
+            r_inertial[0],
+            r_inertial[1],
+            r_inertial[2],
+            v_inertial[0],
+            v_inertial[1],
+            v_inertial[2],
+            orbital_state_vector[6],
+        ]
+    else:
+        return [
+            r_inertial[0],
+            r_inertial[1],
+            r_inertial[2],
+            v_inertial[0],
+            v_inertial[1],
+            v_inertial[2],
+        ]
