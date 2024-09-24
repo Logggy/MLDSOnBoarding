@@ -11,9 +11,22 @@ import scipy.integrate as integrate
 
 ## Propagator for 2BD, requires cartesian state_array input with desired time step resolution
 ## This function returns a full state array for each time step
+
+
+###### Please Note ######
+# All propagators and converters accept units of meters and seconds - ANSWERS ARE IN METERS
+# All converters accept degree arguments in radians and gives them in radians
 def twoBodyProp(
-    x, y, z, vx, vy, vz, time_step=10, export_time=False
-):  ## Contemplate adding an argument for example initial conditions!
+    cartesian_state_vector, time_step=10, export_time=False, oneOrbit=True, timedOrbit=0
+):
+    ## Establish State
+    x = cartesian_state_vector[0]
+    y = cartesian_state_vector[1]
+    z = cartesian_state_vector[2]
+    vx = cartesian_state_vector[3]
+    vy = cartesian_state_vector[4]
+    vz = cartesian_state_vector[5]
+    ## Contemplate adding an argument for example initial conditions!
     ## Lets establish some constants
     G = 6.67 * 10**-11  # N*m^2/kg^2
     m_earth = 5.972 * 10**24  # kg
@@ -31,17 +44,6 @@ def twoBodyProp(
         ax, ay, az = -(G * M * state_vector[:3]) / (r_norm**3)
 
         return [state_vector[3], state_vector[4], state_vector[5], ax, ay, az]
-
-    ## Now we want to propagate for one orbit so I figure I do not want to choose time steps all willy nilly, lets make it smart
-    ## My first idea (since this is all ideal 2BD) is to set it to stop when we get back to the starting point by:
-    ## 1. set a condition where the propagation stops when the initial x, y, z position is passed (after some time has passed)
-    # - failed too sensitive to step size
-    ## 2. If you know the eccentricity and the semi-major axis then you can stop when the orbit encompasses the correct area
-    # - too complicated probably
-    ## 3. rework 1 but how??? Flag the FIRST time slope changes from positive to negative!!! (I thought of this myself!!!!!)
-    ## this itself actually isn't enough, you probably want to run a root finder on the velocity curve or something
-    # (I'm doing the crude way first)
-    ## I wonder what the right answer is lol, its probably just finding the orbital parameters then you don't even have to propagate
 
     ## set up our integrator and associated variables
     integrator = integrate.ode(twoBodyDifEq)
@@ -64,17 +66,21 @@ def twoBodyProp(
         ## at some point (180 degrees later) we will begin to get closer again, and after that we flag when we get further away again
         ## Except that only works when the initial conditions place you in an already stable orbit...
         ## I'll implement this here for now and see what a good answer is
-        if i > 2:
-            ## The norm of the difference of the previous state array and the initial should get larger as the orbit begins to get
-            # closer again
-            if np.linalg.norm(
-                state_array[i - 2, :3] - initial_state_vector[:3]
-            ) > np.linalg.norm(state_array[i - 1, :3] - initial_state_vector[:3]):
-                ## If the previous one was getting closer and the current one is getting further, we know we've passed one orbit
+        if oneOrbit:
+            if i > 2:
+                ## The norm of the difference of the previous state array and the initial should get larger as the orbit begins to get
+                # closer again
                 if np.linalg.norm(
-                    state_array[i - 1, :3] - initial_state_vector[:3]
-                ) < np.linalg.norm(state_array[i, :3] - initial_state_vector[:3]):
-                    break
+                    state_array[i - 2, :3] - initial_state_vector[:3]
+                ) > np.linalg.norm(state_array[i - 1, :3] - initial_state_vector[:3]):
+                    ## If the previous one was getting closer and the current one is getting further, we know we've passed one orbit
+                    if np.linalg.norm(
+                        state_array[i - 1, :3] - initial_state_vector[:3]
+                    ) < np.linalg.norm(state_array[i, :3] - initial_state_vector[:3]):
+                        break
+        else:
+            if i * time_step > timedOrbit:
+                break
 
         i += 1
     if export_time:
@@ -97,7 +103,12 @@ def twoBodyProp(
 ## This is intended to take an input state in cartesian coordinates and change it into the state vector
 
 
-## For now circular orbits are broken, and orbits with zero inclination have ambiguous RAAN and whatnot - I'm just going to convert it to polar maybe
+## Added arguments for using the Mean Anomaly since it is used sometimes, and exporting time steps if we have them in the input
+
+
+##### Please Note #######
+# I had both of these converters written before it was assigned in class, just in case anything doesn't match 1:1 on what we did
+# Namely the eccentricity is the only thing that is too different
 def cartesianToOrbitalElements(
     cartesian_state_vector, central_body_mass, isMeanAnomaly=False, isTime=False
 ):
@@ -109,12 +120,14 @@ def cartesianToOrbitalElements(
     G = 6.67 * 10**-11  # N*m^2/kg^2
     mu = G * central_body_mass
 
-    ## I give credit to René Schwarz, thank you
     ## Find the orbital momentum vector h
 
     h = np.cross(position, velocity)
+
     ##Obtain the eccentricity vector e
+
     e_vector = (np.cross(velocity, h) / mu) - (position / np.linalg.norm(position))
+
     ## Determine n, the vector pointing towards the ascending node
 
     n = np.transpose([-h[1], h[0], 0])
@@ -190,8 +203,6 @@ def cartesianToOrbitalElements(
         # to do this we will just find the angle of wherever it's at using circle math
         # Since orbits are always at least two dimensional if you don't count time and some other things
         # we should only have to consider two cardinal directions
-        # This is a bandaid I have not thought too much about but it should be good enough, the orbit is perfectly circular I can
-        # do whatever I want
         if position[0] != 0 or velocity[0] != 0:
             true_anomaly = np.cos(position[0] / a)
         else:
@@ -228,8 +239,8 @@ def cartesianToOrbitalElements(
             return [a, e, i, RA_ascending_node, arg_peri, true_anomaly]
 
 
-## Chat GPT just spit this out so I'll just check if it works - I had it do the other way to check and it seemed pretty close
-## Chat was right, I just had to change a couple of things!
+## Chapt GPT helped me along with this when I made it the first time before we started class, it matches what we covered very well!
+## After class I did tweak some things to match more closely, really it's all just the same equations we used
 ## Essentially this works some circle magic assuming its in a nice plane, then rotates it back to reality
 
 
@@ -249,6 +260,8 @@ def orbitalElementsToCartesian(orbital_state_vector, central_body_mass, isTime=F
 
     # Calculate position and velocity in the orbital plane
     r = p / (1 + e * np.cos(nu))
+
+    ## In class we defined the these coordinates as P^ and Q^, I just kept it x and y here
     x_p = r * np.cos(nu)
     y_p = r * np.sin(nu)
     v_x_p = -np.sqrt(mu / p) * np.sin(nu)
@@ -258,8 +271,8 @@ def orbitalElementsToCartesian(orbital_state_vector, central_body_mass, isTime=F
     ## Apparently all inputs have to be negative to work properly
     R3_Omega = np.array(
         [
-            [np.cos(-Omega), np.sin(-Omega), 0],
-            [-np.sin(-Omega), np.cos(-Omega), 0],
+            [np.cos(Omega), np.sin(Omega), 0],
+            [-np.sin(Omega), np.cos(Omega), 0],
             [0, 0, 1],
         ]
     )
@@ -267,15 +280,15 @@ def orbitalElementsToCartesian(orbital_state_vector, central_body_mass, isTime=F
     R1_i = np.array(
         [
             [1, 0, 0],
-            [0, np.cos(-1 * i), np.sin(-1 * i)],
-            [0, -np.sin(-1 * i), np.cos(-1 * i)],
+            [0, np.cos(i), np.sin(i)],
+            [0, -np.sin(i), np.cos(i)],
         ]
     )
 
     R3_omega = np.array(
         [
-            [np.cos(-omega), np.sin(-omega), 0],
-            [-np.sin(-omega), np.cos(-omega), 0],
+            [np.cos(omega), np.sin(omega), 0],
+            [-np.sin(omega), np.cos(omega), 0],
             [0, 0, 1],
         ]
     )
@@ -285,8 +298,8 @@ def orbitalElementsToCartesian(orbital_state_vector, central_body_mass, isTime=F
     v_orbital = np.array([v_x_p, v_y_p, 0])
 
     # Convert to the inertial frame
-    r_inertial = R3_Omega @ R1_i @ R3_omega @ r_orbital
-    v_inertial = R3_Omega @ R1_i @ R3_omega @ v_orbital
+    r_inertial = np.transpose(R3_omega @ R1_i @ R3_Omega) @ r_orbital
+    v_inertial = np.transpose(R3_omega @ R1_i @ R3_Omega) @ v_orbital
     if isTime:
 
         return [
