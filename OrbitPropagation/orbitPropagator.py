@@ -244,9 +244,14 @@ def cartesianToOrbitalElements(
 ## Essentially this works some circle magic assuming its in a nice plane, then rotates it back to reality
 
 
-def orbitalElementsToCartesian(orbital_state_vector, central_body_mass, isTime=False):
+def orbitalElementsToCartesian(
+    orbital_state_vector, central_body_mass, mu=0, isTime=False
+):
     G = 6.67 * 10**-11  # N*m^2/kg^2
-    mu = G * central_body_mass
+    if mu == 0:
+        mu = G * central_body_mass
+    else:
+        mu = mu
 
     a = orbital_state_vector[0]
     e = orbital_state_vector[1]

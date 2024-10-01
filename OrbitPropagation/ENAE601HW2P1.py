@@ -170,7 +170,7 @@ angular_momentum = np.zeros(int(1 * (int_time / dt) + 1))
 for i in range(int(1 * (int_time / dt) + 1)):
     sum = 0
     for j in range(N):
-        sum += bodies_masses[j] * np.cross(bodies[j][k], bodies_velocity[j][k])
+        sum += bodies_masses[j] * np.cross(bodies[j][i], bodies_velocity[j][i])
     angular_momentum[i] = np.linalg.norm(sum)
 
 plt.plot(angular_momentum)
