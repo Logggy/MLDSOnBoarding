@@ -109,6 +109,7 @@ first_guess_ellipse = first_guess_ellipse + (tof_ellipse - tn) / (
 )
 
 tries = 1
+# Employ newton-raphson method
 while np.abs(tn - tof_ellipse) > 1:
     tn, rnaughtellipsenew, vnaughtellipsenew = newTimeandR(
         rnaughtellipse, vnaughtellipse, first_guess_ellipse, semimajor_axis_ellipse

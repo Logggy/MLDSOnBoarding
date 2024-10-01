@@ -128,10 +128,52 @@ for i in range(N):
         bodies[i][0, 0],
         bodies[i][0, 1],
         bodies[i][0, 2],
-        "ro",
+        color="lime",
+        marker="o",
         label="Body Initial Condition",
     )
+ax.set_xlabel(["X (m)"])
+ax.set_ylabel(["Y (m)"])
+ax.set_zlabel(["Z (m)"])
+plt.title("Four Body Problem Propagation")
+plt.show()
 
+fig, axes = plt.subplots(3, 1, figsize=(10, 12))
+
+# Define colors for each body
+colors = ["red", "cyan", "orange", "blue"]
+labels = ["Body 1", "Body 2", "Body 3", "Body 4"]
+
+# Plot x-components
+axes[0].plot(body1_position[:, 0], color=colors[0], label=labels[0])
+axes[0].plot(body2_position[:, 0], color=colors[1], label=labels[1])
+axes[0].plot(body3_position[:, 0], color=colors[2], label=labels[2])
+axes[0].plot(body4_position[:, 0], color=colors[3], label=labels[3])
+axes[0].set_ylabel("X Position (m)")
+axes[0].legend()
+axes[0].grid(True)
+
+# Plot y-components
+axes[1].plot(body1_position[:, 1], color=colors[0], label=labels[0])
+axes[1].plot(body2_position[:, 1], color=colors[1], label=labels[1])
+axes[1].plot(body3_position[:, 1], color=colors[2], label=labels[2])
+axes[1].plot(body4_position[:, 1], color=colors[3], label=labels[3])
+axes[1].set_ylabel("Y Position (m)")
+axes[1].legend()
+axes[1].grid(True)
+
+# Plot z-components
+axes[2].plot(body1_position[:, 2], color=colors[0], label=labels[0])
+axes[2].plot(body2_position[:, 2], color=colors[1], label=labels[1])
+axes[2].plot(body3_position[:, 2], color=colors[2], label=labels[2])
+axes[2].plot(body4_position[:, 2], color=colors[3], label=labels[3])
+axes[2].set_ylabel("Z Position (m)")
+axes[2].legend()
+axes[2].grid(True)
+
+# Set common labels and title
+fig.suptitle("Body Positions Over Time")
+fig.text(0.5, 0.04, "Time Steps (seconds)", ha="center")
 plt.show()
 
 ## I'll try to plot the energy here
@@ -161,7 +203,9 @@ for k in range(int(1 * (int_time / dt) + 1)):
 total_e = kinetic_e - potential_e
 
 plt.plot(total_e)
-
+plt.title("Total System Energy Over Time")
+plt.xlabel("Time Steps (seconds)")
+plt.ylabel("Energy (kg * (m/s)^2)")
 plt.show()
 
 ## Now I just need
@@ -174,4 +218,7 @@ for i in range(int(1 * (int_time / dt) + 1)):
     angular_momentum[i] = np.linalg.norm(sum)
 
 plt.plot(angular_momentum)
+plt.title("Total System Angular Momentum Over Time")
+plt.xlabel("Time Steps (seconds)")
+plt.ylabel("Angular Momentum (kg * m^2/s)")
 plt.show()
