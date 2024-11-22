@@ -14,10 +14,15 @@ import scipy.integrate as integrate
 
 
 ###### Please Note ######
-# All propagators and converters accept units of meters and seconds - ANSWERS ARE IN METERS
+# All propagators and converters accept units of meters and seconds - ANSWERS ARE IN KM
 # All converters accept degree arguments in radians and gives them in radians
 def twoBodyProp(
-    cartesian_state_vector, time_step=10, export_time=False, oneOrbit=True, timedOrbit=0
+    cartesian_state_vector,
+    mu,
+    time_step=10,
+    export_time=False,
+    oneOrbit=True,
+    timedOrbit=0,
 ):
     ## Establish State
     x = cartesian_state_vector[0]
@@ -28,7 +33,7 @@ def twoBodyProp(
     vz = cartesian_state_vector[5]
     ## Contemplate adding an argument for example initial conditions!
     ## Lets establish some constants
-    G = 6.67 * 10**-11  # N*m^2/kg^2
+    G = 6.67 * 10**-20  # N*m^2/kg^2
     m_earth = 5.972 * 10**24  # kg
     initial_state_vector = [x, y, z, vx, vy, vz]
 
@@ -41,7 +46,7 @@ def twoBodyProp(
 
     def twoBodyDifEq(t, state_vector, M):
         r_norm = np.linalg.norm(state_vector[:3])
-        ax, ay, az = -(G * M * state_vector[:3]) / (r_norm**3)
+        ax, ay, az = -(mu * state_vector[:3]) / (r_norm**3)
 
         return [state_vector[3], state_vector[4], state_vector[5], ax, ay, az]
 
@@ -110,15 +115,11 @@ def twoBodyProp(
 # I had both of these converters written before it was assigned in class, just in case anything doesn't match 1:1 on what we did
 # Namely the eccentricity is the only thing that is too different
 def cartesianToOrbitalElements(
-    cartesian_state_vector, central_body_mass, isMeanAnomaly=False, isTime=False
+    cartesian_state_vector, mu, isMeanAnomaly=False, isTime=False
 ):
     ## Split into a position and a velocity vector
     position = cartesian_state_vector[:3]
     velocity = cartesian_state_vector[3:6]
-
-    ## standard gravitational parameter calculation, please enter mass in kg
-    G = 6.67 * 10**-11  # N*m^2/kg^2
-    mu = G * central_body_mass
 
     ## Find the orbital momentum vector h
 

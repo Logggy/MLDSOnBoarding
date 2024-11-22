@@ -10,13 +10,14 @@ import numpy as np
 
 def plotter(
     state_array,
+    title,
     plotEnergy=False,
     planet_mass=5.972 * 10**24,
     planet_radius=6.371 * 10**6,
     time_step=10,
 ):
     radius_earth = 6378000  # m
-    G = 6.67 * 10**-11  # N*m^2/kg^2
+    G = 6.67 * 10**-20  # N*m^2/kg^2
 
     # save this to compute accelerations
     def twoBodyDifEq(state_vector, planet_mass):
@@ -100,7 +101,7 @@ def plotter(
     ax.set_ylabel(["Y (m)"])
     ax.set_zlabel(["Z (m)"])
 
-    ax.set_title(["Stable Earth Orbit"])
+    ax.set_title(title)
     plt.legend()
     time_array = time_step * np.arange(len(state_array))
     ## Now that we've got the 3d plot, we can also add the x, y, z, vx, vy, vz 2d plots
