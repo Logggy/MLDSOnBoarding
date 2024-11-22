@@ -133,7 +133,7 @@ orbitalEOrbit = [
     (20 * np.pi) / 180,
 ]
 cartesianOrbit = orbitalElementsToCartesian(orbitalEOrbit, 0, mu=mu_earth)
-time_step = 1
+time_step = 10
 j2state = twoBodyPropJ2(
     cartesianOrbit,
     mu_earth,
@@ -282,29 +282,31 @@ def plotter(
         ax_energy.set_xlabel("Time (s)")
         ax_energy.set_ylabel("Energy - Initial Energy (kJ / kg)")
         ax_energy.legend()
-        fig4, ax4 = plt.subplots(3, 1, figsize=(10, 10))
+        fig4, ax4 = plt.subplots(figsize=(10, 6))  # Single plot
         angular_momentum = np.zeros((len(state_array), 3))
+        angular_momentum_mag = np.zeros(len(state_array))
         orbitalEArrayj2 = np.zeros((len(state_array), 6))
         for i in range(len(state_array)):
             orbitalEArrayj2[i] = cartesianToOrbitalElements(state_array[i], mu_earth)
         for i in range(len(angular_momentum)):
             h0 = np.cross(state_array[0, :3], state_array[0, 3:])
-            h = np.cross(state_array[i, :3], state_array[i, 3:])
-            h = h - h0
+            hi = np.cross(state_array[i, :3], state_array[i, 3:])
+            h = hi - h0
             angular_momentum[i, 0] = h[0]
             angular_momentum[i, 1] = h[1]
             angular_momentum[i, 2] = h[2]
-        ax_momentumi = ax4[0]
+            angular_momentum_mag[i] = np.linalg.norm(hi)
+        ax_momentumi = ax4
         ax_momentumi.yaxis.set_major_formatter(formatter)
         ax_momentumi.set_title("Variation in Angular Momentum in Three Dimensions")
         ax_momentumi.plot(
-            time_array, angular_momentum[:, 0], "w", label="Angular Momentum i"
+            time_array, angular_momentum[:, 0], "b", label="Angular Momentum i"
         )
         ax_momentumi.set_xlabel("Time (s)")
         ax_momentumi.set_ylabel("Specific Angular Momentum (km^2 / s)")
         ax_momentumi.legend()
 
-        ax_momentumj = ax4[1]
+        ax_momentumj = ax4
         ax_momentumj.yaxis.set_major_formatter(formatter)
         ax_momentumj.plot(
             time_array, angular_momentum[:, 1], "r", label="Angular Momentum j"
@@ -313,14 +315,15 @@ def plotter(
         ax_momentumj.set_ylabel("Specific Angular Momentum (km^2 / s)")
         ax_momentumj.legend()
 
-        ax_momentumk = ax4[2]
+        ax_momentumk = ax4
         ax_momentumk.yaxis.set_major_formatter(formatter)
         ax_momentumk.plot(
-            time_array, angular_momentum[:, 2], "-o", label="Angular Momentum k"
+            time_array, angular_momentum[:, 2], "orange", label="Angular Momentum k"
         )
         ax_momentumk.set_xlabel("Time (s)")
         ax_momentumk.set_ylabel("Specific Angular Momentum (km^2 / s)")
         ax_momentumk.legend()
+        ax_momentumk.grid()
         fig5, ax5 = plt.subplots(6, 1, figsize=(30, 30))
         ## Now the osculating orbital elements
         ## Now we also have to plot the osculating orbital elements
