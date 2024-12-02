@@ -295,7 +295,7 @@ def plotter(
             angular_momentum[i, 0] = h[0]
             angular_momentum[i, 1] = h[1]
             angular_momentum[i, 2] = h[2]
-            angular_momentum_mag[i] = np.linalg.norm(hi)
+            angular_momentum_mag[i] = np.sqrt(hi[0] ** 2 + hi[1] ** 2 + hi[2] ** 2)
         ax_momentumi = ax4
         ax_momentumi.yaxis.set_major_formatter(formatter)
         ax_momentumi.set_title("Variation in Angular Momentum in Three Dimensions")

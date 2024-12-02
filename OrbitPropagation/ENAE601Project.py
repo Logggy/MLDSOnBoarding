@@ -2,14 +2,145 @@ import numpy as np
 import scipy.integrate as integrate
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+from sympy import symbols, diff, lambdify
 from orbitPropagator import (
     cartesianToOrbitalElements,
     orbitalElementsToCartesian,
     twoBodyProp,
 )
 from matplotlib.colors import Normalize
+from matplotlib.ticker import ScalarFormatter
+
 
 ## First I just need to establish a propagator that includes gravitational precession
+def calculateRelativity(
+    r_vector,
+    v_vector,
+    mu,
+    t,
+    schwarzchild=True,
+    lensethirring=True,
+    desitter=True,
+    planetJ=980,  ## In supporting papers this is the angular momentum for earth they used
+    perigee=56.1 * np.pi / 180,
+    raan=52.5 * np.pi / 180,
+    inc=50 * np.pi / 180,
+    planet_inc=23.4 * np.pi / 180,
+):
+    mu_earth = 3.986 * 10**5
+    r_norm = np.linalg.norm(r_vector)
+    ## We only need to add a few more terms here: mu_sun, R_s and Rdot_s
+    ## R_s = position of the earth with respect to the sun
+    ## Rdot_s = velocity of the earth relative to the sun
+    ## To do this I will manually evaluate the change in earths true anomaly assuming a circular orbit
+    ## Earths true anomaly starts at zero and we know we change 2pi radians per 365 days
+    ## Assuming earth starts at some arbitrary true anomaly zero:
+    true_anomaly_earth_rad = (
+        1.99 * 10**-7
+    ) * t  ## 2pi/(seconds in a year) * seconds passed from integration start
+    if true_anomaly_earth_rad * t > 2 * np.pi:
+        true_anomaly_earth_rad = true_anomaly_earth_rad - (2 * np.pi)
+    mu_sun = 1.327 * 10**11
+    c = 2.99792 * 10**5  ## km/s
+    earth_state = orbitalElementsToCartesian(
+        [1.49598 * 10**8, 0.01671, 0, 0, 0, true_anomaly_earth_rad + np.pi],
+        1.989 * 10**30,
+        mu=mu_sun,
+    )
+    r_s = np.array(earth_state[:3])
+    rdot_s = np.array(earth_state[3:])
+    r_s_norm = np.linalg.norm(r_s)
+    ## For the lense-thirring effect we require earths specific rotational angular momentum
+    ## Since we are in a non rotating geocentric frame, this vector just points in the positive z direction
+    ## In the 2010 conventions paper J = 9.8 * 10^8 m^2/s
+    earth_angular = np.array([0, 0, planetJ])
+    ## In the paper beta, gamma are PPN parameters equal to 1 in GR
+    beta = 1  ## PPN parameters
+    gamma = 1  ## PPN parameters
+    a_s = 0
+    a_d = 0
+    a_lt = 0
+
+    ## Following terms as provided in Sosnica et al 2021
+    if schwarzchild:
+        a_s = (mu / (c**2 * r_norm**3)) * (
+            (
+                ((2 * (beta + gamma) * (mu / r_norm)) - gamma * (v_vector @ v_vector))
+                * r_vector
+            )
+            + (2 * (1 + gamma) * np.dot(r_vector, v_vector) * v_vector)
+        )
+
+    if lensethirring:
+        a_lt = (
+            (1 + gamma)
+            * (mu / (c**2 * r_norm**3))
+            * (
+                (
+                    (3 / r_norm**2)
+                    * (np.cross(r_vector, v_vector))
+                    * (np.dot(r_vector, earth_angular))
+                )
+                + (np.cross(v_vector, earth_angular))
+            )
+        )
+    if desitter:
+        first_cross = np.cross(rdot_s, (-mu_sun / (c**2 * r_s_norm**3)) * r_s)
+        ## Now the earth is inclined an extra 23.4 degrees, causing our orbit to appear like it
+        ## Is inclined an extra 23.4 degrees due to this effect
+        ## We will simply apply an R_x rotation to achieve this
+        state_vector_nominal = [
+            r_vector[0],
+            r_vector[1],
+            r_vector[2],
+            v_vector[0],
+            v_vector[1],
+            v_vector[2],
+        ]
+        v_vector_helio = cartesianToOrbitalElements(state_vector_nominal, mu_earth)
+        v_vector_helio[2] = v_vector_helio[2] + planet_inc
+        v_vector_helio = orbitalElementsToCartesian(v_vector_helio, 0, mu=mu_earth)
+        ## By doing this we have created a frame equivalent to the original orbit being inclined to 50 degrees
+        ## but with the earth inclined 23.4 degrees compared to the sun
+        ## To accomplish this I did it the foolproof way, I rotated back to the base frame (the perifocal frame)
+        ## Then rotated it back to the original orbit at inc 50
+        second_cross = np.cross((1 + (2 * gamma)) * first_cross, v_vector_helio[3:])
+        R_x_sun = np.array(
+            [
+                [1, 0, 0],
+                [0, np.cos(inc + planet_inc), -np.sin(inc + planet_inc)],
+                [0, np.sin(inc + planet_inc), np.cos(inc + planet_inc)],
+            ]
+        )
+        R_x_inertial = np.array(
+            [
+                [1, 0, 0],
+                [0, np.cos(inc), -np.sin(inc)],
+                [0, np.sin(inc), np.cos(inc)],
+            ]
+        )
+        R_z_periapsis = np.array(
+            [
+                [np.cos(perigee), -np.sin(perigee), 0],
+                [np.sin(perigee), np.cos(perigee), 0],
+                [0, 0, 1],
+            ]
+        )
+        R_z = np.array(
+            [
+                [np.cos(raan), -np.sin(raan), 0],
+                [np.sin(raan), np.cos(raan), 0],
+                [0, 0, 1],
+            ]
+        )
+        R_tot_sun = R_z @ R_x_sun @ R_z_periapsis
+
+        ##Then rotate back to the true frame
+        R_tot_inertial = R_z.T @ R_x_inertial.T @ R_z_periapsis.T
+
+        a_d = np.dot(np.dot(second_cross, R_tot_sun), R_tot_inertial)
+
+    return a_s, a_lt, a_d
 
 
 def twoBodyPropRelativistic(
@@ -22,6 +153,7 @@ def twoBodyPropRelativistic(
     export_time=True,
     oneOrbit=False,
     timedOrbit=10,
+    J_2=False,
 ):
     ## Establish State
     x = cartesian_state_vector[0]
@@ -30,110 +162,44 @@ def twoBodyPropRelativistic(
     vx = cartesian_state_vector[3]
     vy = cartesian_state_vector[4]
     vz = cartesian_state_vector[5]
-    ## Contemplate adding an argument for example initial conditions!
     ## Lets establish some constants
     initial_state_vector = [x, y, z, vx, vy, vz]
-    ## Now we propagate
-    ## In this solution we know that F = GMm/r^2
-    ## Essentially we already know the solutions to Newtons Equations namely - a = -GMr / mag_r^3, where a and r are vectors
-    ## So now it's easy - we have the solutions of the original function (x, y, z, vx, vy, vz)
-    ## AND their derivatives (vx, vy, vz, ax, ay, az), all we need to do is integrate to solve the ODE
-    ## We are applying an acceleration in the direction of the velocity vector, so we can just add this in within the difeq itself
-    a_s_array = []
-    a_d_array = []
-    a_lt_array = []
+    ## In case we need J2
+    x, y, z = symbols("x y z")
+    r = (x**2 + y**2 + z**2) ** (1 / 2)
+    j2 = 0.00108248
+    radius_e = 6378
+    u = (mu / r) * (1 - j2 * ((radius_e / r) ** 2) * ((1.5 * (z / r) ** 2) - 0.5))
 
-    a_s_magarray = []
-    a_d_magarray = []
-    a_lt_magarray = []
+    du_dx = diff(u, x)
+    du_dy = diff(u, y)
+    du_dz = diff(u, z)
+    # Convert derivatives to fast numerical functions
+    du_dx_func = lambdify((x, y, z), du_dx, "numpy")
+    du_dy_func = lambdify((x, y, z), du_dy, "numpy")
+    du_dz_func = lambdify((x, y, z), du_dz, "numpy")
 
-    def twoBodyDifEq(t, state_vector, mu):
+    def twoBodyDifEqJ2Relativity(t, state_vector, mu):
         r_vector = state_vector[:3]
         v_vector = state_vector[3:]
-        r_norm = np.linalg.norm(state_vector[:3])
-        ax, ay, az = -(mu * state_vector[:3]) / (r_norm**3)
-        v_norm = np.linalg.norm(state_vector[3:])
+        x = state_vector[0]
+        y = state_vector[1]
+        z = state_vector[2]
+        if J_2:
+            ax = du_dx_func(x, y, z)
+            ay = du_dy_func(x, y, z)
+            az = du_dz_func(x, y, z)
+        else:  ## If no J2 just the standard newtonian 2 body orbit
+            r_norm = np.linalg.norm(state_vector[:3])
+            ax, ay, az = -(mu * state_vector[:3]) / (r_norm**3)
+
         ## Fortunately the magnitudes of these three relativistic accelerations are well described in
         ## Sosnica et al 2021, thank you!
-        ## We only need to add a few more terms here: mu_sun, R_s and Rdot_s
-        ## R_s = position of the earth with respect to the sun
-        ## Rdot_s = velocity of the earth relative to the sun
-        ## To do this I will manually evaluate the change in earths true anomaly assuming a circular orbit
-        ## Earths true anomaly starts at zero and we know we change 2pi radians per 365 days
-        ## Assuming earth starts at some arbitrary true anomaly zero:
-        true_anomaly_earth_rad = (
-            2 * np.pi / (3.154 * 10**7)
-        ) * t  ## 2pi/(seconds in a year) * seconds passed from integration start
-        if (2 * np.pi / (3.154 * 10**7)) * t > 2 * np.pi:
-            true_anomaly_earth_rad = true_anomaly_earth_rad - (2 * np.pi)
-        mu_sun = 1.327 * 10**11
-        c = 2.99792 * 10**5  ## km/s
-        earth_state = orbitalElementsToCartesian(
-            [1.49597 * 10**8, 0, 0, 0, 0, true_anomaly_earth_rad],
-            1.989 * 10**30,
-            mu=mu_sun,
+        a_s, a_lt, a_d = calculateRelativity(
+            r_vector, v_vector, mu, t, True, True, True
         )
-        r_s = np.array(earth_state[:3])
-        rdot_s = np.array(earth_state[3:])
-        r_s_norm = np.linalg.norm(r_s)
-        ## For the lense-thirring effect we require earths specific rotational angular momentum
-        ## Since we are in a non rotating geocentric frame, this vector just points in the positive z direction
-        ## For some reason this magnitude is only given in kg m^2/s, so divide by mass
-        earth_angular = np.array([0, 0, (7.05 * 10**33) / (5.9722 * 10**24 * 10**6)])
-
-        ## In the paper beta, gamma "are PPN parameters equal to 1 in GR" this cant be correct because beta is
-        ## Nearly zero in GR...
-        ## I'll calculate it anyways
-        beta = v_norm / c
-        gamma = 1 / np.sqrt(1 - beta**2)
-        accel_vector = np.array([ax, ay, az])
-        a_s = 0
-        a_d = 0
-        a_lt = 0
-
-        if schwarzchild:
-            a_s = (mu / (c**2 * r_norm**3)) * (
-                (
-                    (
-                        2 * (beta + gamma) * (mu / r_norm)
-                        - np.dot(gamma * v_vector, v_vector)
-                    )
-                    * r_vector
-                )
-                + (2 * (1 + gamma) * (np.dot(r_vector, v_vector)) * v_vector)
-            )
-            # print("a_s ", np.linalg.norm(a_s))
-            accel_vector = accel_vector + a_s
-            a_s_magarray.append(np.linalg.norm(a_s))
-            a_s_array.append(a_s)
-
-        if lensethirring:
-            a_lt = (
-                (1 + gamma)
-                * (mu / (c**2 * r_norm**3))
-                * (
-                    (
-                        (3 / r_norm**2)
-                        * (np.cross(r_vector, v_vector))
-                        * (np.dot(r_vector, earth_angular))
-                    )
-                    + (np.cross(v_vector, earth_angular))
-                )
-            )
-            accel_vector = accel_vector + a_lt
-            # print("a_lt ", np.linalg.norm(a_lt))
-            a_lt_magarray.append(np.linalg.norm(a_lt))
-            a_lt_array.append(a_lt)
-
-        if desitter:
-            first_cross = np.cross(rdot_s, (-mu_sun / (c**2 * r_s_norm**3)) * r_s)
-            second_cross = np.cross(first_cross, v_vector)
-            a_d = (1 + (2 * gamma)) * second_cross
-            accel_vector = accel_vector + a_d
-            # print("a_d ", np.linalg.norm(a_d))
-            a_d_magarray.append(np.linalg.norm(a_d))
-            a_d_array.append(a_d)
-
+        accel_vector = [ax, ay, az]
+        accel_vector = accel_vector + a_s + a_lt + a_d
         return [
             state_vector[3],
             state_vector[4],
@@ -144,7 +210,7 @@ def twoBodyPropRelativistic(
         ]
 
     ## set up our integrator and associated variables
-    integrator = integrate.ode(twoBodyDifEq)
+    integrator = integrate.ode(twoBodyDifEqJ2Relativity)
     integrator.set_integrator(
         "dop853"
     )  # use 8th order RK method - apparently it's really good
@@ -160,10 +226,6 @@ def twoBodyPropRelativistic(
         time_array = np.append(time_array, [integrator.t], axis=0)
         state_array = np.append(state_array, [integrator.y], axis=0)
         ## Just find some way to tell it passed the initial condition
-        ## when it starts we will be getting further away from each x, y, z initial condition
-        ## at some point (180 degrees later) we will begin to get closer again, and after that we flag when we get further away again
-        ## Except that only works when the initial conditions place you in an already stable orbit...
-        ## I'll implement this here for now and see what a good answer is
         if oneOrbit:
             if i > 2:
                 ## The norm of the difference of the previous state array and the initial should get larger as the orbit begins to get
@@ -192,32 +254,80 @@ def twoBodyPropRelativistic(
             total_array[i, 4] = state_array[i, 4]
             total_array[i, 5] = state_array[i, 5]
             total_array[i, 6] = time_array[i]
-        return (
-            total_array,
-            np.array([a_s_array, a_lt_array, a_d_array]),
-            np.array([a_s_magarray, a_lt_magarray, a_d_magarray]),
-        )
+        return total_array
     else:
-        return (
-            state_array,
-            np.array([a_s_array, a_lt_array, a_d_array]),
-            np.array([a_s_magarray, a_lt_magarray, a_d_magarray]),
-        )
+        return state_array
 
 
+time_step = 100
 mu_earth = 3.986 * 10**5
-a = (32000 + 17180) / 2
-e = (32000 - 17180) / (32000 + 17180)
-test_vector = [a, e, 0, 0, 0, 0]
+radius_earth = 6371
+r_p = 17081 + radius_earth
+r_a = 26116 + radius_earth
+a = (r_p + r_a) / 2
+e = (r_a - r_p) / (r_p + r_a)
+inc = 50 * np.pi / 180  ## Stated in Sosnica et al 2021
+
+## RAAN and Perigee are not explicitly stated in the paper, and matter based on the perturbations you use
+## Later in this code I confirm that I am calculating the forces properly,
+## but I have no way to know for certain what RAAN and Periapsis they used
+
+raan = 52.5 * np.pi / 180
+perigee = 56.1 * np.pi / 180
+test_vector = [a, e, inc, raan, perigee, 0]
 cartesian_test_vector = orbitalElementsToCartesian(test_vector, 0, mu=mu_earth)
-orbitTest, relativistic_vectors, relativistic_mags = twoBodyPropRelativistic(
+orbitTest = twoBodyPropRelativistic(
     cartesian_test_vector,
     mu_earth,
     schwarzchild=True,
     desitter=True,
     lensethirring=True,
     oneOrbit=True,
-    time_step=100,
+    time_step=time_step,
+    export_time=False,
+)
+relativistic_mags = np.zeros((3, len(orbitTest)))
+relativistic_vectors = np.zeros((3, len(orbitTest), 3))
+orbitTest = np.array(orbitTest)
+print(orbitTest[0])
+for i in range(len(orbitTest)):
+    a_s, a_lt, a_d = calculateRelativity(
+        orbitTest[i, :3], orbitTest[i, 3:], mu_earth, i * time_step
+    )
+    relativistic_vectors[0, i] = a_s
+    relativistic_vectors[1, i] = a_lt
+    relativistic_vectors[2, i] = a_d
+
+    relativistic_mags[0, i] = np.linalg.norm(a_s)
+    relativistic_mags[1, i] = np.linalg.norm(a_lt)
+    relativistic_mags[2, i] = np.linalg.norm(a_d)
+
+print(
+    "Schwarz: ",
+    "Max: ",
+    max(relativistic_mags[0]),
+    "Min: ",
+    min(relativistic_mags[0]),
+    "Med: ",
+    np.median(relativistic_mags[0]),
+)
+print(
+    "Lense Thirring: ",
+    "Max: ",
+    max(relativistic_mags[1]),
+    "Min: ",
+    min(relativistic_mags[1]),
+    "Med: ",
+    np.median(relativistic_mags[1]),
+)
+print(
+    "Desitter: ",
+    "Max: ",
+    max(relativistic_mags[2]),
+    "Min: ",
+    min(relativistic_mags[2]),
+    "Med: ",
+    np.median(relativistic_mags[2]),
 )
 
 
@@ -516,3 +626,187 @@ def plotter(
 
 plotter(orbitTest, relativistic_vectors, relativistic_mags)
 plt.show()
+
+## Now I'll try to recreate the plots fro fig 1, fig 2, and fig 3
+## Start with shcwarzchild
+schwarzchild_vectors = np.array(relativistic_vectors[0])
+lense_thirring_vectors = np.array(relativistic_vectors[1])
+desitter_vectors = np.array(relativistic_vectors[2])
+
+schwarzchild_mags = relativistic_mags[0]
+lense_thirring_mags = relativistic_mags[1]
+desitter_mags = relativistic_mags[2]
+
+schwarz_min = np.min(schwarzchild_mags)
+schwarz_max = np.max(schwarzchild_mags)
+
+lt_min = np.min(lense_thirring_mags)
+lt_max = np.max(lense_thirring_mags)
+
+desitter_min = np.min(desitter_mags)
+desitter_max = np.max(desitter_mags)
+
+r_vecs = orbitTest[:, :3]
+
+## Rotate each to be 2d
+# Define rotation matrix about the x-axis
+earth_inc = 23.4 * np.pi / 180
+R_z = np.array(
+    [[np.cos(raan), -np.sin(raan), 0], [np.sin(raan), np.cos(raan), 0], [0, 0, 1]]
+)
+R_x = np.array(
+    [[1, 0, 0], [0, np.cos(inc), -np.sin(inc)], [0, np.sin(inc), np.cos(inc)]]
+)
+R_x_sun = np.array(
+    [
+        [1, 0, 0],
+        [0, np.cos(inc + earth_inc), -np.sin(inc + earth_inc)],
+        [0, np.sin(inc + earth_inc), np.cos(inc + earth_inc)],
+    ]
+)
+R_z_periapsis = np.array(
+    [
+        [np.cos(perigee), -np.sin(perigee), 0],
+        [np.sin(perigee), np.cos(perigee), 0],
+        [0, 0, 1],
+    ]
+)
+R_tot = R_z @ R_x @ R_z_periapsis
+R_tot_sun = R_z @ R_x_sun @ R_z_periapsis
+# Rotate position vectors (r_vecs) and force vectors (schwarzchild_vectors, etc.)
+for i in range(len(orbitTest)):
+    r_vecs[i] = np.dot(
+        r_vecs[i], R_tot
+    )  # Project onto xy-plane (take first two columns)
+    schwarzchild_vectors[i] = np.dot(schwarzchild_vectors[i], R_tot)
+    ## The lesne thirring force calulcated at the different inclined orbit in the frame I have posed
+    ## is equivalent to the earth being inclined naturally with the original inclination of 50
+    lense_thirring_vectors[i] = np.dot(lense_thirring_vectors[i], R_tot)
+    desitter_vectors[i] = np.dot(desitter_vectors[i], R_tot)
+
+r_vecs = r_vecs[:, :2]
+schwarzchild_vectors = schwarzchild_vectors[:, :2]
+lense_thirring_vectors = lense_thirring_vectors[:, :2]
+desitter_vectors = desitter_vectors[:, :2]
+
+
+## Start with shcwarzchild
+# Function to plot a single force
+def plot_force_2d(r_vecs_2d, vectors_2d, mags, title, cmap="viridis"):
+    plt.style.use("default")  # Light background with gridlines
+    plt.figure(figsize=(8, 8))
+
+    # Normalize the color range explicitly
+    norm = Normalize(vmin=np.min(mags), vmax=np.max(mags))
+    colors = plt.cm.get_cmap(cmap)(norm(mags))
+
+    # Scatter plot of positions, color-coded by force magnitude
+    scatter = plt.scatter(
+        r_vecs_2d[:, 0],
+        r_vecs_2d[:, 1],
+        c=mags,
+        cmap=cmap,
+        norm=norm,  # Explicitly use the defined normalization
+        s=10,
+        alpha=0.7,
+    )
+
+    # Add vectors as quivers
+    scale = 1
+    if title == "Schwarzschild Force":
+        scale = 10**13
+    if title == "Lense-Thirring Force":
+        scale = 2 * 10**15
+    if title == "de Sitter Force":
+        scale = 3 * 10**14
+    plt.quiver(
+        r_vecs_2d[:, 0],
+        r_vecs_2d[:, 1],
+        vectors_2d[:, 0] * scale,
+        vectors_2d[:, 1] * scale,
+        color=colors,
+        scale=50,
+        width=0.002,
+    )
+
+    # Add a colorbar with scientific notation
+    cbar = plt.colorbar(scatter, label="Force Magnitude")
+    cbar.ax.yaxis.set_major_formatter(ScalarFormatter(useMathText=True))
+    cbar.ax.yaxis.get_offset_text().set_fontsize(
+        10
+    )  # Adjust size of the exponent label
+
+    # Set titles and labels
+    # Set plot limits
+    plt.xlim(-40000, 40000)
+    plt.ylim(-30000, 30000)
+    plt.title(title)
+    plt.xlabel("x (km)")
+    plt.ylabel("y (km)")
+    plt.grid(
+        color="gray", linestyle="--", linewidth=0.5, alpha=0.5
+    )  # Light gray gridlines
+    plt.gca().set_facecolor("white")  # Explicitly set white background
+    plt.show()
+
+
+# Plot Schwarzschild force
+plot_force_2d(r_vecs, schwarzchild_vectors, schwarzchild_mags, "Schwarzschild Force")
+
+# Plot Lense-Thirring force
+plot_force_2d(
+    r_vecs, lense_thirring_vectors, lense_thirring_mags, "Lense-Thirring Force"
+)
+
+# Plot de Sitter force
+plot_force_2d(r_vecs, desitter_vectors, desitter_mags, "de Sitter Force")
+
+
+## I am going to recreate the magnitude of the forces for varying circular orbits
+
+# Heights for orbits (in km)
+geo_orbit = 35786
+gps_orbit = 20184
+lageos_orbit = 5850
+jason_orbit = 1335
+champ_orbit = 350
+heights = np.linspace(100, 45000, 1000)
+
+relativities = np.zeros((len(heights), 3))
+
+for i in range(len(heights)):
+    vector = [heights[i] + radius_earth, 0, 0, 0, 0, 0]
+    cartesian_vector = orbitalElementsToCartesian(vector, 0, mu=mu_earth)
+    r = np.array(cartesian_vector[:3])
+    v = np.array(cartesian_vector[3:])
+
+    a_s, a_lt, a_d = calculateRelativity(r, v, mu_earth, 0)
+
+    relativities[i, 0] = np.linalg.norm(a_s)
+    relativities[i, 1] = np.linalg.norm(a_lt)
+    relativities[i, 2] = np.linalg.norm(a_d)
+
+# Plotting
+plt.figure(figsize=(10, 6))
+plt.plot(heights, relativities[:, 0], label="Schwarzschild term ($a_s$)")
+plt.plot(heights, relativities[:, 1], label="Lense-Thirring term ($a_{lt}$)")
+plt.plot(heights, relativities[:, 2], label="de Sitter term ($a_d$)")
+
+# Adding vertical lines
+orbits = [geo_orbit, gps_orbit, lageos_orbit, jason_orbit, champ_orbit]
+orbit_labels = ["GEO orbit", "GPS orbit", "LAGEOS orbit", "Jason orbit", "CHAMP orbit"]
+
+for orbit, label in zip(orbits, orbit_labels):
+    plt.axvline(x=orbit, color="gray", linestyle="--", label=f"{label} ({orbit} km)")
+
+# Labels and legend
+plt.xlabel("Orbit Height (km)")
+plt.ylabel("Acceleration (km/s^2)")
+plt.yscale("log")  # Assuming forces are better visualized on a log scale
+plt.title("Relativistic Force Magnitudes for Circular Orbits")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+## We must now recreate figure 9 from the Sosnica 2021
