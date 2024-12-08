@@ -275,199 +275,6 @@ def twoBodyPropRelativistic(
         return state_array
 
 
-## Attempting leapfrog integration
-# def twoBodyPropRelativistic(
-#     cartesian_state_vector,
-#     mu,
-#     schwarzchild=False,
-#     lensethirring=False,
-#     desitter=False,
-#     time_step=10,
-#     export_time=True,
-#     oneOrbit=False,
-#     timedOrbit=10,
-#     J_2=False,
-#     exaggeration=1,
-# ):
-#     import numpy as np
-#     from sympy import symbols, diff, lambdify
-
-#     ## Establish State
-#     x, y, z = cartesian_state_vector[:3]
-#     vx, vy, vz = cartesian_state_vector[3:]
-#     initial_state_vector = [x, y, z, vx, vy, vz]
-
-#     ## Constants for J2 perturbation
-#     x_sym, y_sym, z_sym = symbols("x y z")
-#     r_sym = (x_sym**2 + y_sym**2 + z_sym**2) ** 0.5
-#     j2 = 0.00108248
-#     radius_e = 6378
-#     u = (mu / r_sym) * (
-#         1 - j2 * ((radius_e / r_sym) ** 2) * ((1.5 * (z_sym / r_sym) ** 2) - 0.5)
-#     )
-
-#     du_dx_func = lambdify((x_sym, y_sym, z_sym), diff(u, x_sym), "numpy")
-#     du_dy_func = lambdify((x_sym, y_sym, z_sym), diff(u, y_sym), "numpy")
-#     du_dz_func = lambdify((x_sym, y_sym, z_sym), diff(u, z_sym), "numpy")
-
-#     def calculate_acceleration(state_vector, t):
-#         """Compute acceleration based on forces (Newtonian, J2, relativity)."""
-#         r_vector = np.array(state_vector[:3])
-#         v_vector = np.array(state_vector[3:])
-#         x, y, z = r_vector
-
-#         if J_2:
-#             ax = du_dx_func(x, y, z)
-#             ay = du_dy_func(x, y, z)
-#             az = du_dz_func(x, y, z)
-#         else:
-#             r_norm = np.linalg.norm(r_vector)
-#             ax, ay, az = -(mu * r_vector) / (r_norm**3)
-
-#         # Add relativistic corrections
-#         a_s, a_lt, a_d = calculateRelativity(
-#             r_vector,
-#             v_vector,
-#             mu,
-#             t,
-#             schwarzchild,
-#             lensethirring,
-#             desitter,
-#             exaggeration,
-#         )
-#         accel_vector = [ax, ay, az]
-#         if schwarzchild:
-#             accel_vector += a_s
-#         if lensethirring:
-#             accel_vector += a_lt
-#         if desitter:
-#             accel_vector += a_d
-
-#         return np.array(accel_vector)
-
-#     # ## Leapfrog integration variables
-#     # dt = time_step
-#     # state_array = [initial_state_vector]
-#     # time_array = [0]
-
-#     # ## Initial half-step for velocity
-#     # r_vector = np.array(initial_state_vector[:3])
-#     # v_vector = np.array(initial_state_vector[3:])
-#     # t = 0
-#     # acceleration = calculate_acceleration(initial_state_vector, t)
-#     # v_half = v_vector + 0.5 * dt * acceleration
-
-#     # i = 1
-#     # while True:
-#     #     # Update position
-#     #     r_vector += dt * v_half
-
-#     #     # Update acceleration
-#     #     acceleration = calculate_acceleration([*r_vector, *v_half], t + dt)
-
-#     #     # Update velocity (full step)
-#     #     v_half += dt * acceleration
-
-#     #     # Update state and time
-#     #     state_array.append([*r_vector, *v_half])
-#     #     t += dt
-#     #     time_array.append(t)
-
-#     #     # Check conditions for stopping
-#     #     if oneOrbit:
-#     #         if i > 2:
-#     #             if np.linalg.norm(
-#     #                 np.array(state_array[i - 2][:3]) - initial_state_vector[:3]
-#     #             ) > np.linalg.norm(
-#     #                 np.array(state_array[i - 1][:3]) - initial_state_vector[:3]
-#     #             ) and np.linalg.norm(
-#     #                 np.array(state_array[i - 1][:3]) - initial_state_vector[:3]
-#     #             ) < np.linalg.norm(
-#     #                 np.array(state_array[i][:3]) - initial_state_vector[:3]
-#     #             ):
-#     #                 break
-#     #     else:
-#     #         if i * dt > timedOrbit:
-#     #             break
-#     #     i += 1
-
-#     # state_array = np.array(state_array)
-#     # if export_time:
-#     #     total_array = np.hstack([state_array, np.array(time_array).reshape(-1, 1)])
-#     #     return total_array
-#     # else:
-#     #     return state_array
-#     ## Weights for Yoshida 4th-order integrator
-#     w1 = 1 / (2 - 2 ** (1 / 3))
-#     w2 = 1 - 2 * w1
-#     w3 = w1
-#     v1, v2 = w1, w2
-
-#     ## Integration setup
-#     dt = time_step
-#     state_array = [initial_state_vector]
-#     time_array = [0]
-
-#     r_vector = np.array(initial_state_vector[:3])
-#     v_vector = np.array(initial_state_vector[3:])
-#     t = 0
-
-#     i = 1
-#     while True:
-#         # Step 1: Position update (v1)
-#         r_vector += v1 * dt * v_vector
-
-#         # Step 2: Velocity update (w1)
-#         acceleration = calculate_acceleration([*r_vector, *v_vector], t + v1 * dt)
-#         v_vector += w1 * dt * acceleration
-
-#         # Step 3: Position update (v2)
-#         r_vector += v2 * dt * v_vector
-
-#         # Step 4: Velocity update (w2)
-#         acceleration = calculate_acceleration(
-#             [*r_vector, *v_vector], t + (v1 + v2) * dt
-#         )
-#         v_vector += w2 * dt * acceleration
-
-#         # Step 5: Position update (v1)
-#         r_vector += v1 * dt * v_vector
-
-#         # Step 6: Velocity update (w3)
-#         acceleration = calculate_acceleration([*r_vector, *v_vector], t + dt)
-#         v_vector += w3 * dt * acceleration
-
-#         # Update state and time
-#         state_array.append([*r_vector, *v_vector])
-#         t += dt
-#         time_array.append(t)
-
-#         # Check conditions for stopping
-#         if oneOrbit:
-#             if i > 2:
-#                 if np.linalg.norm(
-#                     np.array(state_array[i - 2][:3]) - initial_state_vector[:3]
-#                 ) > np.linalg.norm(
-#                     np.array(state_array[i - 1][:3]) - initial_state_vector[:3]
-#                 ) and np.linalg.norm(
-#                     np.array(state_array[i - 1][:3]) - initial_state_vector[:3]
-#                 ) < np.linalg.norm(
-#                     np.array(state_array[i][:3]) - initial_state_vector[:3]
-#                 ):
-#                     break
-#         else:
-#             if i * dt > timedOrbit:
-#                 break
-#         i += 1
-
-#     state_array = np.array(state_array)
-#     if export_time:
-#         total_array = np.hstack([state_array, np.array(time_array).reshape(-1, 1)])
-#         return total_array
-#     else:
-#         return state_array
-
-
 time_step = 50
 mu_earth = 3.986 * 10**5
 radius_earth = 6371
@@ -559,7 +366,6 @@ def plotter(
 
         return [state_vector[3], state_vector[4], state_vector[5], ax, ay, az]
 
-    plt.style.use("dark_background")
     fig = plt.figure(figsize=(10, 10))
     formatter = mticker.ScalarFormatter(useMathText=True)
     formatter.set_scientific(True)
@@ -593,7 +399,7 @@ def plotter(
         state_array[0, 0],
         state_array[0, 1],
         state_array[0, 2],
-        "wo",
+        "ro",
         label="Initial Condition",
     )
 
@@ -632,7 +438,7 @@ def plotter(
     ax.set_ylabel(["Y (km)"])
     ax.set_zlabel(["Z (km)"])
 
-    ax.set_title(["Thrusting Earth Orbit"])
+    ax.set_title(["E14 Orbit w/ Schwarzchild Term Magnitude"])
     plt.legend()
     time_array = time_step * np.arange(len(state_array))
     ## Now that we've got the 3d plot, we can also add the x, y, z, vx, vy, vz 2d plots
@@ -928,17 +734,17 @@ def plot_force_2d(r_vecs_2d, vectors_2d, mags, title, cmap="viridis"):
     if title == "de Sitter Force":
         scale = 3 * 10**14
     plt.quiver(
-        r_vecs_2d[:, 0],
-        r_vecs_2d[:, 1],
-        vectors_2d[:, 0] * scale,
-        vectors_2d[:, 1] * scale,
-        color=colors,
+        r_vecs_2d[::3, 0],
+        r_vecs_2d[::3, 1],
+        vectors_2d[::3, 0] * scale,
+        vectors_2d[::3, 1] * scale,
+        color=colors[::3],
         scale=50,
         width=0.002,
     )
 
     # Add a colorbar with scientific notation
-    cbar = plt.colorbar(scatter, label="Force Magnitude")
+    cbar = plt.colorbar(scatter, label="Force Magnitude (km/s^2)")
     cbar.ax.yaxis.set_major_formatter(ScalarFormatter(useMathText=True))
     cbar.ax.yaxis.get_offset_text().set_fontsize(
         10
@@ -1168,8 +974,9 @@ ax.plot(
 # Add labels, title, and legend
 ax.set_xlabel("X [km]")
 ax.set_ylabel("Y [km]")
-ax.set_title("2D Rotated Orbits in the XY Plane")
+ax.set_title("Nominal vs Exaggerated by 4*10^8 Displacement for E14")
 ax.legend()
+ax.grid()
 
 # Show the plot
 plt.show()
