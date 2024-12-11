@@ -162,28 +162,30 @@ for i in range(len(orbit1half)):
 print(np.array(orbit2half[-1]) - np.array(orbit1half[-1]))
 ## After getting the true differences I also need to point them in the right directions
 print(true_diff[0])
-plt.plot(half_period_time, R, label="R")
-plt.plot(time_prop, true_diff[:, 0], label="Propagated R")
-plt.ylabel("Distance (km)")
-plt.xlabel("Time (s)")
-plt.title("RSW Values from CW equations vs True Propagation")
-plt.legend()
-plt.show()
+fig, axs = plt.subplots(3, 1, figsize=(10, 15), sharex=True)
 
-plt.plot(half_period_time, S, label="S")
-plt.plot(time_prop, true_diff[:, 1], label="Propagated S")
-plt.ylabel("Distance (km)")
-plt.xlabel("Time (s)")
-plt.title("RSW Values from CW equations vs True Propagation")
-plt.legend()
-plt.show()
+# Plot R
+axs[0].plot(half_period_time, R, label="CW R")
+axs[0].plot(time_prop, [row[0] for row in true_diff], label="Propagated R")
+axs[0].set_ylabel("Distance (km)")
+axs[0].set_title("RSW Values from CW equations vs True Propagation")
+axs[0].legend()
 
-plt.plot(half_period_time, W, label="W")
-plt.plot(time_prop, true_diff[:, 2], label="Propagated W")
-plt.ylabel("Distance (km)")
-plt.xlabel("Time (s)")
-plt.title("RSW Values from CW equations vs True Propagation")
-plt.legend()
+# Plot S
+axs[1].plot(half_period_time, S, label="CW S")
+axs[1].plot(time_prop, [row[1] for row in true_diff], label="Propagated S")
+axs[1].set_ylabel("Distance (km)")
+axs[1].set_title("RSW Values from CW equations vs True Propagation")
+axs[1].legend()
+
+# Plot W
+axs[2].plot(half_period_time, W, label="CW W")
+axs[2].plot(time_prop, [row[2] for row in true_diff], label="Propagated W")
+axs[2].set_ylabel("Distance (km)")
+axs[2].set_xlabel("Time (s)")
+axs[2].set_title("RSW Values from CW equations vs True Propagation")
+axs[2].legend()
+
 plt.show()
 
 
@@ -193,7 +195,7 @@ plt.show()
 
 percenttime = 0
 for i in range(len(half_period_time)):
-    if np.linalg.norm([R[i], S[i], W[i]]) > atarget * 0.01:
+    if np.linalg.norm([R[i], S[i], W[i]]) > np.linalg.norm(orbit1half[i, :3]) * 0.01:
         percenttime = half_period_time[i]
         break
 
@@ -201,3 +203,57 @@ for i in range(len(half_period_time)):
 print(percenttime)
 
 ## Confirmed that my stuff is looking good!
+## We know that our CW and propagated equations are looking good because W is basically 0 as it should be, since they are inclined the same,
+## we know that there should be no difference between the two in the direction of orbital angular momentum.
+
+## Question 2
+final_time = 100
+omega_target_final = np.sqrt(mu_earth / orbit1OE[0] ** 3) * final_time
+omega_target = np.sqrt(mu_earth / orbit1OE[0] ** 3)
+matrixRRtf = np.matrix(
+    [
+        [4 - 3 * np.cos(omega_target_final), 0, 0],
+        [6 * (np.sin(omega_target_final) - omega_target_final), 1, 0],
+        [0, 0, np.cos(omega_target_final)],
+    ]
+)
+
+matrixRVtf = np.matrix(
+    [
+        [
+            np.sin(omega_target_final) / omega_target,
+            (2 / omega_target) * (1 - np.cos(omega_target_final)),
+            0,
+        ],
+        [
+            (-2 / omega_target) * (1 - np.cos(omega_target_final)),
+            (4 * np.sin(omega_target_final) - 3 * omega_target_final) / omega_target,
+            0,
+        ],
+        [0, 0, np.sin(omega_target_final) / omega_target],
+    ]
+)
+
+matrixVRtf = np.matrix(
+    [
+        [3 * omega_target * np.sin(omega_target_final), 0, 0],
+        [6 * (omega_target * np.cos(omega_target_final) - omega_target), 0, 0],
+        [0, 0, -omega_target * np.sin(omega_target_final)],
+    ]
+)
+
+matrixVVtf = np.matrix(
+    [
+        [np.cos(omega_target_final), 2 * np.sin(omega_target_final), 0],
+        [-2 * np.sin(omega_target_final), 4 * np.cos(omega_target_final) - 3, 0],
+        [0, 0, np.cos(omega_target_final)],
+    ]
+)
+
+## R_0 is defined above as r_vec
+
+v_t0 = -np.linalg.inv(matrixRVtf) @ matrixRRtf @ r_vec
+v_tf = (matrixVRtf - matrixVVtf @ np.linalg.inv(matrixRVtf) @ matrixRRtf) @ r_vec
+
+print("The relative vector (RSW) for the first maneuver is: ", v_t0 - v_vec, " km/s")
+print("The relative vector (RSW) for the second maneuver is: ", -v_tf, " km/s")
