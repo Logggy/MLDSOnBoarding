@@ -35,8 +35,9 @@ orbit2OE = [
 orbit1Ct = np.array(orbitalElementsToCartesian(orbit1OE, 0, mu=mu_earth))
 orbit2Ct = np.array(orbitalElementsToCartesian(orbit2OE, 0, mu=mu_earth))
 
-orbit1 = twoBodyProp(orbit1Ct, mu_earth)
-orbit2 = twoBodyProp(orbit2Ct, mu_earth)
+period = 2 * np.pi * np.sqrt(orbit1OE[0] ** 3 / mu_earth)
+orbit1 = twoBodyProp(orbit1Ct, mu_earth, oneOrbit=False, timedOrbit=period)
+orbit2 = twoBodyProp(orbit2Ct, mu_earth, oneOrbit=False, timedOrbit=period)
 
 orbit1r = np.array(orbit1)[:, :3]
 orbit2r = np.array(orbit2)[:, :3]
