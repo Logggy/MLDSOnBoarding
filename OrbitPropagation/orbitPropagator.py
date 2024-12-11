@@ -55,7 +55,7 @@ def twoBodyProp(
     integrator.set_integrator(
         "dop853"
     )  # use 8th order RK method - apparently it's really good
-    integrator.set_f_params(m_earth)  # use earth mass
+    integrator.set_f_params(mu)  # use earth mass
     integrator.set_initial_value(initial_state_vector, 0)
     dt = time_step  # arbitrary, set by user
     state_array = np.array([initial_state_vector])
@@ -307,7 +307,6 @@ def orbitalElementsToCartesian(
     r_inertial = np.transpose(R3_omega @ R1_i @ R3_Omega) @ r_orbital
     v_inertial = np.transpose(R3_omega @ R1_i @ R3_Omega) @ v_orbital
     if isTime:
-
         return [
             r_inertial[0],
             r_inertial[1],
